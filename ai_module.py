@@ -133,7 +133,7 @@ OUTPUT FORMAT:
                 providers = ['CPUExecutionProvider']
                 print("⚠️  CUDA 사용 불가, CPU만 사용")
                 
-            providers= ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
+            providers= ['CUDAExecutionProvider', 'CPUExecutionProvider']
             
             # ONNX 세션 생성
             print("🔄 ONNX 세션 생성 중...")
