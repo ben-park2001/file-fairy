@@ -39,20 +39,38 @@ class AIKeywordExtractor:
     
     def _get_default_prompt_template(self) -> str:
         """기본 프롬프트 템플릿을 반환합니다."""
-        return """파일 내용을 분석하여 다음을 제공해주세요:
+        return """You are an expert file naming and classification specialist. Analyze the original filename and file content to generate optimal results.
 
-파일 내용:
+Original filename: {file_name}
+File content:
 ---
 {file_content}
 ---
 
-요청사항:
-1. 이 파일 내용을 요약하는 한국어 키워드 3개 (밑줄로 연결: 예시_키워드_형태)
-2. 이 파일이 속할 적절한 폴더명 1개 (한국어)
+TASK: 
+1. Evaluate if the original filename accurately represents the file content
+2. Generate a new descriptive filename (3-8 words, use underscores, include extension)
+3. Suggest an appropriate folder name in Korean
 
-응답 형식:
-키워드: [키워드1_키워드2_키워드3]
-폴더: [폴더명]"""
+GUIDELINES:
+- If original filename is descriptive and accurate, use it as reference for the new filename
+- If original filename is generic or unclear, create a completely new descriptive filename
+- New filename should be concise but comprehensive
+- Use clear, common terminology
+- Folder name should be in Korean and categorize the file appropriately
+
+EXAMPLES:
+Original: document1.pdf, Content: quarterly sales report Q3 2024
+→ 키워드: Q3_2024_quarterly_sales_report.pdf
+→ 폴더: 매출보고서
+
+Original: notes.txt, Content: project meeting discussing timeline and budget
+→ 키워드: project_meeting_timeline_budget.txt  
+→ 폴더: 회의록
+
+OUTPUT FORMAT:
+키워드: [new_filename_with_extension]
+폴더: [Korean_folder_name]"""
 
     def _load_models(self):
         """ONNX 모델들을 로드합니다."""
@@ -81,7 +99,7 @@ class AIKeywordExtractor:
             # ONNX 모델 경로들
             embed_model_path = self.model_dir / "onnx/embed_tokens_quantized.onnx"
             decoder_model_path = self.model_dir / "onnx/decoder_model_merged_q4.onnx"
-            vision_model_path = self.model_dir / "onnx/vision_encoder.onnx"
+            vision_model_path = self.model_dir / "onnx/vision_encoder_quantized.onnx"
             audio_model_path = self.model_dir / "onnx/audio_encoder_quantized.onnx"
             
             print(f"🔍 모델 파일 경로 확인:")
@@ -114,6 +132,8 @@ class AIKeywordExtractor:
             else:
                 providers = ['CPUExecutionProvider']
                 print("⚠️  CUDA 사용 불가, CPU만 사용")
+                
+            providers= ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
             
             # ONNX 세션 생성
             print("🔄 ONNX 세션 생성 중...")
@@ -137,9 +157,7 @@ class AIKeywordExtractor:
             # Vision 모델 (선택적)
             if vision_model_path.exists():
                 try:
-                    # Vision 모델은 더 보수적으로 로드 (external data 고려)
-                    vision_providers = ['CPUExecutionProvider']  # 먼저 CPU로 시도
-                    self.vision_session = onnxruntime.InferenceSession(str(vision_model_path), providers=vision_providers)
+                    self.vision_session = onnxruntime.InferenceSession(str(vision_model_path), providers=providers)
                     vision_provider = self.vision_session.get_providers()[0]
                     print(f"✅ Vision model using: {vision_provider}")
                     
@@ -160,9 +178,7 @@ class AIKeywordExtractor:
             # Audio 모델 (선택적)
             if audio_model_path.exists():
                 try:
-                    # Audio 모델은 더 보수적으로 로드 (external data 고려)
-                    audio_providers = ['CPUExecutionProvider']  # 먼저 CPU로 시도
-                    self.audio_session = onnxruntime.InferenceSession(str(audio_model_path), providers=audio_providers)
+                    self.audio_session = onnxruntime.InferenceSession(str(audio_model_path), providers=providers)
                     audio_provider = self.audio_session.get_providers()[0]
                     print(f"✅ Audio model using: {audio_provider}")
                     
@@ -204,7 +220,7 @@ class AIKeywordExtractor:
             traceback.print_exc()
             raise RuntimeError(f"모델 로딩 실패: {e}")
     
-    def _generate_response(self, prompt: str, max_new_tokens: int = 512, image_path: Optional[str] = None, audio_path: Optional[str] = None) -> str:
+    def _generate_response(self, prompt: str, max_new_tokens: int = 64, image_path: Optional[str] = None, audio_path: Optional[str] = None) -> str:
         """
         주어진 프롬프트에 대해 AI 응답을 생성합니다.
         
@@ -360,6 +376,7 @@ class AIKeywordExtractor:
                 if file_content.strip():
                     prompt = f"""{content_type}와 텍스트 내용을 분석하여 다음을 제공해주세요:
 
+Original filename: {file_name}
 텍스트 내용:
 ---
 {file_content}
@@ -372,6 +389,8 @@ class AIKeywordExtractor:
 키워드: [키워드1_키워드2_키워드3]"""
                 else:
                     prompt = f"""{content_type}를 분석하여 다음을 제공해주세요:
+
+Original filename: {file_name}
 
 요청사항:
 1. {content_type}의 내용을 요약하는 한국어 키워드 3개 (밑줄로 연결: 예시_키워드_형태)
@@ -489,24 +508,99 @@ class AIKeywordExtractor:
             제안된 파일명 (확장자 포함)
         """
         try:
-            # 키워드 추출
-            keywords = self.extract_keywords(file_content, original_name + extension, image_path, audio_path)
+            # 파일 내용이 너무 길면 자르기 (토큰 제한)
+            if len(file_content) > 2000:
+                file_content = file_content[:2000] + "..."
+            
+            original_filename = original_name + extension
+            
+            # 프롬프트 생성 - 기존 제목과 내용을 함께 분석
+            if image_path or audio_path:
+                content_desc = []
+                if image_path:
+                    content_desc.append("이미지")
+                if audio_path:
+                    content_desc.append("오디오")
+                content_type = "와 ".join(content_desc)
+                
+                if file_content.strip():
+                    prompt = f"""You are an expert file naming specialist for multimedia files. Analyze the original filename and content to generate an optimal new filename.
+
+Original filename: {original_filename}
+Content type: {content_type}
+Text content:
+---
+{file_content}
+---
+
+TASK: Generate a new descriptive filename that represents both the {content_type} and text content.
+
+GUIDELINES:
+- 3-8 words maximum, use underscores
+- Include original extension: {extension}
+- If original filename is descriptive, reference it
+- If original filename is generic (like IMG_001 or audio_file), create a completely new name
+- Be specific and descriptive
+
+OUTPUT FORMAT:
+키워드: [new_filename{extension}]"""
+                else:
+                    prompt = f"""You are an expert file naming specialist. Analyze the original filename and {content_type} to generate an optimal new filename.
+
+Original filename: {original_filename}
+Content type: {content_type}
+
+TASK: Generate a new descriptive filename for this {content_type} file.
+
+GUIDELINES:
+- 3-8 words maximum, use underscores
+- Include original extension: {extension}
+- If original filename is descriptive, reference it
+- If original filename is generic, create a completely new descriptive name
+
+OUTPUT FORMAT:
+키워드: [new_filename{extension}]"""
+            else:
+                # 텍스트 파일의 경우 기본 템플릿 사용
+                prompt = self.prompt_template.format(
+                    file_content=file_content,
+                    file_name=original_filename
+                )
+            
+            # AI 응답 생성
+            response = self._generate_response(prompt, image_path=image_path, audio_path=audio_path)
+            
+            # 모델이 없고 미디어만 있는 경우 기본 파일명 반환
+            if image_path and not self.vision_session and not file_content.strip():
+                return f"image_content{extension}"
+            if audio_path and not self.audio_session and not file_content.strip():
+                return f"audio_content{extension}"
+            
+            # 새로운 파일명 추출
+            new_filename = self._parse_keywords_from_response(response)
+            
+            # 확장자가 없다면 추가
+            if not new_filename.endswith(extension):
+                # 키워드에서 확장자 제거 후 올바른 확장자 추가
+                if '.' in new_filename:
+                    new_filename = new_filename.rsplit('.', 1)[0]
+                new_filename += extension
             
             # 파일명으로 적합하지 않은 문자 제거
-            safe_keywords = re.sub(r'[<>:"/\\|?*]', '_', keywords)
-            safe_keywords = re.sub(r'_+', '_', safe_keywords).strip('_')
+            safe_filename = re.sub(r'[<>:"/\\|?*]', '_', new_filename)
+            safe_filename = re.sub(r'_+', '_', safe_filename).strip('_')
             
             # 파일명이 너무 길면 자르기
-            if len(safe_keywords) > 50:
-                safe_keywords = safe_keywords[:50].rstrip('_')
+            name_part = safe_filename.replace(extension, '')
+            if len(name_part) > 50:
+                name_part = name_part[:50].rstrip('_')
+                safe_filename = name_part + extension
             
-            # 새 파일명 생성
-            if safe_keywords and safe_keywords != "키워드추출실패":
-                new_name = f"{original_name}_{safe_keywords}{extension}"
-            else:
-                new_name = f"{original_name}{extension}"
-            
-            return new_name
+            # 생성에 실패했거나 의미없는 결과인 경우 원본 사용
+            if not safe_filename or safe_filename in [f"키워드추출실패{extension}", extension]:
+                return original_filename
+                
+            return safe_filename
             
         except Exception as e:
             print(f"파일명 제안 중 오류: {e}")
@@ -518,18 +612,23 @@ class AIKeywordExtractor:
             # 무의미한 키워드 필터링 목록
             meaningless_keywords = {"없음", "비어있음", "알수없음", "모름", "정보없음", "내용없음", "빈내용"}
             
-            # "키워드:" 라벨 찾기
+            # "키워드:" 라벨 찾기 - 새로운 파일명 형식 지원
             keyword_match = re.search(r'키워드\s*:\s*\[?([^\]\n]+)\]?', response, re.IGNORECASE)
             if keyword_match:
                 keywords = keyword_match.group(1).strip()
-                # 특수문자 정리
+                # 특수문자 정리 (대괄호 제거, 파일명에 적합하지 않은 문자)
                 keywords = re.sub(r'[<>:"/\\|?*\[\]]', '', keywords)
                 
-                # 무의미한 키워드 필터링
+                # 완전한 파일명 형식인지 확인 (확장자 포함)
+                if '.' in keywords and not keywords.startswith('.'):
+                    # 이미 완전한 파일명 형식
+                    return keywords
+                
+                # 키워드 형식인 경우 무의미한 키워드 필터링
                 keyword_parts = [k.strip() for k in keywords.split('_') if k.strip()]
                 filtered_parts = [k for k in keyword_parts if k not in meaningless_keywords]
                 
-                if len(filtered_parts) >= 2:  # 최소 2개 이상의 의미있는 키워드가 있을 때만 반환
+                if len(filtered_parts) >= 1:  # 최소 1개 이상의 의미있는 키워드가 있을 때 반환
                     return '_'.join(filtered_parts)
             
             # 대체 패턴들 시도
@@ -539,12 +638,21 @@ class AIKeywordExtractor:
                     keywords = line.split(':', 1)[1].strip()
                     keywords = re.sub(r'[<>:"/\\|?*\[\]]', '', keywords)
                     if keywords:
-                        # 무의미한 키워드 필터링
+                        # 완전한 파일명 형식인지 확인
+                        if '.' in keywords and not keywords.startswith('.'):
+                            return keywords
+                        
+                        # 키워드 형식인 경우 무의미한 키워드 필터링
                         keyword_parts = [k.strip() for k in keywords.split('_') if k.strip()]
                         filtered_parts = [k for k in keyword_parts if k not in meaningless_keywords]
                         
-                        if len(filtered_parts) >= 2:
+                        if len(filtered_parts) >= 1:
                             return '_'.join(filtered_parts)
+            
+            # 응답에서 파일명 패턴을 직접 찾기 시도
+            filename_pattern = re.search(r'([a-zA-Z가-힣0-9_]+\.[a-zA-Z0-9]+)', response)
+            if filename_pattern:
+                return filename_pattern.group(1)
             
             return "키워드추출실패"
             
