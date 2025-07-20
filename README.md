@@ -1,5 +1,6 @@
 # File Fairy 🧚
 
+![logo](./logo.png)
 File Fairy is an AI-powered file organization tool that intelligently categorizes, renames, and organizes files based on their content and metadata.
 
 ## Features
