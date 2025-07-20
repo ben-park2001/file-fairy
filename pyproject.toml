@@ -1,0 +1,23 @@
+[project]
+name = "file-fairy"
+version = "0.1.0"
+description = "A utility package for reading and processing various file formats"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "PyPDF2>=3.0.0",
+    "python-docx>=1.1.0",
+    "python-pptx>=0.6.23",
+    "openpyxl>=3.1.0",
+    "olefile>=0.46",
+    "numpy>=2.3.1",
+    "transformers>=4.53.2",
+    "onnxruntime>=1.22.1",
+]
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["file_fairy", "file_fairy.extractors", "file_fairy.core"]
