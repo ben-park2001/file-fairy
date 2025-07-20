@@ -203,7 +203,6 @@ class FileOrganizer:
             if self.message_creator.is_supported_format(str(file_path)):
                 # Get file content for AI analysis
                 file_content = self._extract_file_content(file_path)
-                
                 # Get AI suggestions
                 suggestions = self.ai_extractor.process_file_content(
                     file_name=file_path.name,
@@ -233,10 +232,9 @@ class FileOrganizer:
         try:
             message = self.message_creator.create_message(str(file_path))
             # Extract text content from message
-            for content_item in message[0]['content']:
-                if content_item.get('type') == 'text' and 'text' in content_item:
-                    return content_item['text']
-            return ""
+            texts = [item['text'] for item in message[0]['content'] 
+                    if item.get('type') == 'text' and 'text' in item]
+            return texts[1] if len(texts) > 1 else ""
         except Exception as e:
             self.logger.warning(f"Content extraction failed for {file_path}: {e}")
             return ""
@@ -314,6 +312,9 @@ class FileOrganizer:
                     'category': category,
                     'path': str(file_path)
                 })
+                
+                print(f"🔥 Preview: {file_path.name} -> {new_filename} in category '{category}'")
+                
             except Exception as e:
                 self.logger.warning(f"Preview failed for {file_path}: {e}")
         
