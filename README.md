@@ -287,7 +287,3 @@ print('PDF supported:', is_supported_file('test.pdf'))
 3. Include docstrings for all public APIs
 4. Test your changes thoroughly
 5. Update documentation as needed
-
-## License
-
-[Add your license information here]
