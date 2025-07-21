@@ -140,10 +140,6 @@ Files are automatically categorized into:
 - **이미지 (Images)**: JPG, PNG, GIF, BMP, TIFF
 - **데이터 (Data)**: CSV, XLSX, JSON, XLS
 - **음악 (Audio)**: MP3, WAV, FLAC, M4A, AAC, OGG
-- **동영상 (Video)**: MP4, AVI, MKV, MOV, WMV
-- **압축파일 (Archives)**: ZIP, 7Z, RAR, TAR, GZ
-- **코드 (Code)**: PY, JS, HTML, CSS, JAVA, CPP, C
-- **기타 (Others)**: All other files
 
 ### AI Model Configuration
 
