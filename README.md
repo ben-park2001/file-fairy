@@ -283,10 +283,7 @@ print('PDF supported:', is_supported_file('test.pdf'))
 "
 ```
 
-## Contributing
-
-1. Follow the existing code style and architecture
-2. Add type hints for all functions and methods
-3. Include docstrings for all public APIs
-4. Test your changes thoroughly
-5. Update documentation as needed
+## Contributors
+박병민(Byungmin Park), parkben02@gmail.com
+서준(Joon Seo), jnseojnseo@gmail.com
+전성진(Sungjin Jeon), samuel1127@snu.ac.kr
