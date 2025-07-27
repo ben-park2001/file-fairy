@@ -26,7 +26,7 @@ class AIKeywordExtractor:
                 self.model_path = gguf_files[0]  # 첫 번째 gguf 파일 사용
             else:
                 # 기본 경로 사용
-                self.model_path = Path(r"E:\Downloads\Models\unsloth\gemma-3n-E2B-it-GGUF\gemma-3n-E2B-it-Q4_K_S.gguf")
+                self.model_path = Path(r"E:\Downloads\Models\Qwen\Qwen2.5-1.5B-Instruct-GGUF")
         else:
             self.model_path = model_path_obj
             
