@@ -3,6 +3,8 @@
 ![logo](./logo.png)
 File Fairy is an AI-powered file organization tool that intelligently categorizes, renames, and organizes files based on their content and metadata.
 
+**Development Status: Prototype**
+
 ## Features
 
 - **Multi-format Support**: Process documents (PDF, DOCX, PPTX, HWP), images, audio files, and data files
