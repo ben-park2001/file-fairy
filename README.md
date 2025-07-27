@@ -284,6 +284,6 @@ print('PDF supported:', is_supported_file('test.pdf'))
 ```
 
 ## Contributors
-박병민(Byungmin Park), parkben02@gmail.com
-서준(Joon Seo), jnseojnseo@gmail.com
-전성진(Sungjin Jeon), samuel1127@snu.ac.kr
+- 박병민(Byungmin Park), parkben02@gmail.com
+- 서준(Joon Seo), jnseojnseo@gmail.com
+- 전성진(Sungjin Jeon), samuel1127@snu.ac.kr
