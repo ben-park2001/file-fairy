@@ -1,0 +1,17 @@
+[package]
+name = "file-fairy-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+config = { version = "0.15", features = ["ini", "json", "yaml", "toml"] }
+strum = { version = "0.27", features = ["derive"] }
+strum_macros = "0.27"
+serde = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+num_cpus = "1.16"
+file-fairy-extractors = { path = "../file-fairy-extractors" }
+file-fairy-llm = { path = "../file-fairy-llm" }
