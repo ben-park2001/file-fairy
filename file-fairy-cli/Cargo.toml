@@ -1,0 +1,13 @@
+[package]
+name = "file-fairy-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+file-fairy-core = { path = "../file-fairy-core" }
+clap = { version = "4.4", features = ["derive"] }
+tokio.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+atty = "0.2"
