@@ -1,0 +1,12 @@
+[package]
+name = "file-fairy-extractors"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pdf-extract = "0.9"
+hwp = "0.2"
+dotext = "0.1"
+thiserror = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
