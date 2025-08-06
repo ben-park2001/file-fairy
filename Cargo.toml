@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = ["file-fairy-cli", "file-fairy-core", "file-fairy-extractors", "file-fairy-llm"]
+
+# Optional: Define default settings for all crates
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+# Define shared dependencies here to ensure version consistency
+[workspace.dependencies]
+# Add dependencies that multiple crates will use
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.35", features = ["full"] }
+thiserror = "1.0"
+anyhow = "1.0"
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde", "std"] }
