@@ -53,7 +53,9 @@ fn create_suggest_command() -> Command {
             "file",
             "The file to analyze and generate a filename for",
         ))
-        .arg(ArgBuilder::model_path("models/gemma-3n-E2B-it-Q4_K_M.gguf"))
+        .arg(ArgBuilder::model_path(
+            "models/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+        ))
         .arg(ArgBuilder::max_tokens("32"))
         .arg(ArgBuilder::threads("8"))
 }

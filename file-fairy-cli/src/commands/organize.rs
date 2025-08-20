@@ -1,8 +1,15 @@
 use super::CommandHandler;
-use crate::{args::ArgBuilder, config::CliConfig, error::{CliError, CliResult}};
+use crate::{
+    args::ArgBuilder,
+    config::CliConfig,
+    error::{CliError, CliResult},
+};
 use clap::{ArgMatches, Command};
 use file_fairy_core::{FileOrganizeService, OrganizeOptions};
-use std::{io::{self, Write}, path::PathBuf};
+use std::{
+    io::{self, Write},
+    path::PathBuf,
+};
 
 /// Handler for the 'organize' command
 pub struct OrganizeCommand;
@@ -22,7 +29,7 @@ impl OrganizeCommand {
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).map_err(CliError::Io)?;
-        
+
         if !input.trim().to_lowercase().starts_with('y') {
             println!("❌ Aborted by user");
             return Err(CliError::UserCancelled);
@@ -98,11 +105,11 @@ impl CommandHandler for OrganizeCommand {
     fn name(&self) -> &'static str {
         "organize"
     }
-    
+
     fn about(&self) -> &'static str {
         "Categorize, rename, and move files based on content and metadata"
     }
-    
+
     fn build_command(&self) -> Command {
         Command::new(self.name())
             .about(self.about())
@@ -118,14 +125,16 @@ impl CommandHandler for OrganizeCommand {
             .arg(ArgBuilder::target_dir())
             .arg(ArgBuilder::follow_symlinks())
             .arg(ArgBuilder::max_size())
-            .arg(ArgBuilder::model_path("models/gemma-3n-E2B-it-Q4_K_M.gguf"))
+            .arg(ArgBuilder::model_path(
+                "models/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+            ))
             .arg(ArgBuilder::max_tokens("32"))
             .arg(ArgBuilder::threads("8"))
     }
 
     async fn execute(&self, matches: &ArgMatches) -> CliResult<()> {
         let path = PathBuf::from(matches.get_one::<String>("path").unwrap());
-        
+
         // Safety warning for apply mode
         let apply = matches.get_flag("apply");
         if apply {
@@ -135,8 +144,7 @@ impl CommandHandler for OrganizeCommand {
         let config = self.build_config(matches)?;
         let options = self.build_organize_options(matches)?;
 
-        let service = FileOrganizeService::new(config)
-            .map_err(CliError::Core)?;
+        let service = FileOrganizeService::new(config).map_err(CliError::Core)?;
 
         self.display_operation_info(&path, apply, &options);
 
