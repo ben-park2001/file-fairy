@@ -96,9 +96,7 @@
         <Icon icon={Plus} size="sm" class="mr-2" />
         <Text text={isAddingFolder ? "Selecting..." : "Add Folder to Watch"} />
       </Button>
-      <Button onclick={onClose}>
-        <Text text="Done" color="white" />
-      </Button>
+      <Button onclick={onClose}>Done</Button>
     </div>
   </DialogContent>
 </Dialog>

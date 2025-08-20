@@ -5,7 +5,7 @@
     text: string;
     size?: "xs" | "sm" | "md" | "lg" | "xl";
     weight?: "normal" | "medium" | "semibold" | "bold";
-    color?: "primary" | "secondary" | "muted" | "error" | "success" | "white";
+    color?: "primary" | "secondary" | "muted" | "error" | "success";
     class?: string;
   }
 
@@ -38,7 +38,6 @@
     muted: "text-muted-foreground",
     error: "text-destructive",
     success: "text-green-600",
-    white: "text-white",
   };
 </script>
 
