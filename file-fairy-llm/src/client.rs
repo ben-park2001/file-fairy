@@ -142,7 +142,7 @@ impl LocalLlmClient {
             // Initialize the context
             let mut ctx_params = LlamaContextParams::default()
                 .with_n_ctx(Some(NonZeroU32::new(context_size).unwrap()))
-                .with_n_batch(8192);
+                .with_n_batch(4096);
 
             if let Some(threads) = threads {
                 ctx_params = ctx_params.with_n_threads(threads as i32);
@@ -240,82 +240,51 @@ impl LocalLlmClient {
         .map_err(|e| LlmError::Internal(anyhow!("Task join error: {}", e)))?
     }
 
-    /// Creates a prompt for filename suggestion based on its original filename and content
-    fn create_filename_prompt(&self, original_filename: &str, content: &str) -> String {
+    /// Creates a prompt for summarizing content
+    fn create_summary_prompt(&self, content: &str) -> String {
         let truncated_content = Self::truncate_content(content, DEFAULT_CONTENT_TRUNCATION);
 
         format!(
-            r#"<bos><start_of_turn>user
-You are File Fairy, an AI-powered file organization assistant that creates clear, concise, and descriptive filenames based on document content and metadata.
+            r#"<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Provide a concise and accurate summary of the following text, focusing on the main ideas and key details.
+Limit your summary to a maximum of 150 words.
 
-## Task
-Analyze the provided file content and generate a new filename that accurately represents the document's purpose, content, and context.
+Text: {}
 
-## Input Format
-- **Original Filename**: [filename]
-- **File Content**: [content]
+Summary:<|im_end|>
+<|im_start|>assistant"#,
+            truncated_content
+        )
+    }
 
-## Instructions
+    /// Creates a prompt for filename suggestion based on a summary
+    fn create_filename_prompt(&self, summary: &str) -> String {
+        format!(
+            r#"<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Based on the summary below, generate a specific and descriptive filename that captures the essence of the document.
+Limit the filename to a maximum of 3 words. Use nouns and avoid starting with verbs like 'depicts', 'shows', 'presents', etc.
+Do not include any data type words like 'text', 'document', 'pdf', etc. Use only letters and connect words with underscores.
 
-### Primary Objectives
-1. **Content Analysis**: Thoroughly analyze the document content to understand its main purpose, topic, and key information
-2. **Language Detection**: Identify the primary language of the content and incorporate this into your naming decision
-3. **Clarity**: Create filenames that immediately convey what the document contains
-4. **Conciseness**: Keep filenames reasonably short (ideally 3-8 words) while maintaining clarity
+Summary: {}
 
-### Naming Guidelines
-- Use descriptive keywords that capture the document's essence
-- Include document type when relevant (report, invoice, manual, etc.)
-- Incorporate dates in YYYY-MM-DD format when chronologically important
-- Use proper capitalization (Title Case or sentence case)
-- Replace spaces with underscores or hyphens for compatibility
-- Preserve file extensions from original filename
-- Consider the document's business context or domain
+Examples:
+1. Summary: A research paper on the fundamentals of string theory.
+   Filename: fundamentals_string_theory
 
-### Language Considerations
-- If content is in a non-English language, use that language for the filename when appropriate
-- For multilingual documents, prioritize the dominant language
-- Use standard transliteration for non-Latin scripts when necessary
-- Include language codes (e.g., "_EN", "_ES", "_FR") only when managing multilingual document sets
+2. Summary: An article discussing the effects of climate change on polar bears.
+   Filename: climate_change_polar_bears
 
-### Quality Criteria
-- The filename should be immediately understandable to someone who hasn't read the document
-- Avoid generic terms like "document", "file", or "untitled" unless absolutely necessary
-- Include version numbers or revision indicators when evident in content
-- Consider the target audience and organizational context
+Now generate the filename.
 
-## Output Format
-Provide only the new filename, nothing else. Do not include explanations, quotation marks, or additional text.
+Output only the filename, without any additional text.
 
-## Examples
-
-**Input**: 
-- Original Filename: document_final_v2.pdf
-- File Content: Annual financial report for FY 2023, showing revenue growth of 15% and detailed expense breakdown...
-
-**Output**: Annual_Financial_Report_FY2023.pdf
-
-**Input**:
-- Original Filename: temp123.docx  
-- File Content: Procédure de sécurité pour l'évacuation d'urgence du bâtiment principal en cas d'incendie...
-
-**Output**: Procedure_Evacuation_Urgence_Incendie.docx
-
-**Input**:
-- Original Filename: scan001.jpg
-- File Content: [Receipt from ABC Electronics dated March 15, 2024, for laptop purchase, amount $1,299.99]
-
-**Output**: Receipt_ABC_Electronics_Laptop_2024-03-15.jpg
-
-Now analyze the provided file and generate an appropriate filename.
-
-**Input**:
-- Original Filename: {}
-- File Content: {}
-
-**Output**: <end_of_turn>
-<start_of_turn>model"#,
-            original_filename, truncated_content
+Filename:<|im_end|>
+<|im_start|>assistant"#,
+            summary
         )
     }
 
@@ -361,15 +330,22 @@ Now analyze the provided file and generate an appropriate filename.
 
 #[async_trait]
 impl FileLlm for LocalLlmClient {
-    async fn suggest_filename(&self, original_filename: &str, content: &str) -> Result<String> {
+    async fn suggest_filename(&self, _original_filename: &str, content: &str) -> Result<String> {
         if content.trim().is_empty() {
             return Ok(FALLBACK_FILENAME.to_string());
         }
 
-        let prompt = self.create_filename_prompt(original_filename, content);
+        // Step 1: Generate summary
+        let summary_prompt = self.create_summary_prompt(content);
+        let summary = self
+            .run_inference(&summary_prompt)
+            .await
+            .map_err(|e| anyhow!("Failed to generate content summary: {}", e))?;
 
+        // Step 2: Generate filename based on summary
+        let filename_prompt = self.create_filename_prompt(&summary);
         let suggested_name = self
-            .run_inference(&prompt)
+            .run_inference(&filename_prompt)
             .await
             .map_err(|e| anyhow!("Failed to generate filename suggestion: {}", e))?;
 
@@ -417,26 +393,36 @@ mod tests {
     }
 
     #[test]
-    fn test_filename_prompt_creation() {
+    fn test_summary_prompt_creation() {
         let config = create_test_config();
         let client = LocalLlmClient::new(config).unwrap();
-        let filename = "example.txt";
         let content = "This is a document about machine learning and artificial intelligence.";
-        let prompt = client.create_filename_prompt(filename, content);
+        let prompt = client.create_summary_prompt(content);
 
         assert!(prompt.contains("machine learning and artificial intelligence"));
         assert!(prompt.contains(content));
     }
 
     #[test]
-    fn test_filename_prompt_truncation() {
+    fn test_filename_prompt_creation() {
         let config = create_test_config();
         let client = LocalLlmClient::new(config).unwrap();
-        let filename = "example.txt";
-        let long_content = "a".repeat(3000);
-        let prompt = client.create_filename_prompt(filename, &long_content);
+        let summary =
+            "A research paper discussing machine learning algorithms and their applications.";
+        let prompt = client.create_filename_prompt(summary);
 
-        // The prompt should not contain the full 10_000 characters
+        assert!(prompt.contains("machine learning algorithms"));
+        assert!(prompt.contains(summary));
+    }
+
+    #[test]
+    fn test_summary_prompt_truncation() {
+        let config = create_test_config();
+        let client = LocalLlmClient::new(config).unwrap();
+        let long_content = "a".repeat(3000);
+        let prompt = client.create_summary_prompt(&long_content);
+
+        // The prompt should not contain the full 3000 characters
         assert!(prompt.len() < 10_000); // Some buffer for the prompt text
     }
 
