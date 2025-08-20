@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "file-fairy",
+        "title": "File Fairy",
         "width": 800,
-        "height": 600
+        "minWidth": 600,
+        "height": 600,
+        "minHeight": 500
       }
     ],
     "security": {
