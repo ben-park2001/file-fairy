@@ -51,7 +51,7 @@
     {placeholder}
     oninput={handleInput}
     onkeydown={handleKeyDown}
-    class="border-0 bg-transparent text-lg placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+    class="border-0 bg-transparent placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
   />
 
   {#if isLoading}

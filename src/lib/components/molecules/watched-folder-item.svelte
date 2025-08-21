@@ -17,7 +17,7 @@
 
 <div class="flex items-center gap-3 p-3 rounded-lg border">
   <Icon icon={Folder} size="sm" class="text-blue-500 flex-shrink-0" />
-  <div class="flex-1 min-w-0">
+  <div class="flex flex-col flex-1 min-w-0 space-y-1">
     <Text text={folder.name} weight="medium" class="truncate" />
     <Text text={folder.path} size="sm" color="muted" class="truncate" />
   </div>
