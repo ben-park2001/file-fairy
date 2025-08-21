@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Text } from "$lib/components/atoms";
   import MagicBar from "$lib/components/organisms/magic-bar.svelte";
-  import OrganizeModal from "$lib/components/organisms/organize-modal.svelte";
+  import OrganizeResults from "$lib/components/organisms/organize-results.svelte";
   import WatchFolderModal from "$lib/components/organisms/watch-folder-modal.svelte";
   import SearchResults from "$lib/components/organisms/search-results.svelte";
   import NoResults from "$lib/components/molecules/no-results.svelte";
@@ -25,34 +25,46 @@
     onOrganize,
   }: Props = $props();
 
-  let showOrganizeModal = $state(false);
   let showWatchModal = $state(false);
   let droppedFolder = $state<string | null>(null);
+  let isOrganizing = $state(false);
 
   const handleFolderDrop = (folderPath: string) => {
     droppedFolder = folderPath;
-    showOrganizeModal = true;
+    isOrganizing = true;
+    // Clear any existing search results when organizing
+    onSearch?.("");
   };
 
   const handleSearch = (query: string) => {
     onSearch?.(query);
+    // Clear organization results when searching
+    if (query.trim()) {
+      isOrganizing = false;
+      droppedFolder = null;
+    }
   };
 
   const handleClearSearch = () => {
     onSearch?.("");
   };
 
+  const handleClearOrganize = () => {
+    isOrganizing = false;
+    droppedFolder = null;
+  };
+
   const handleWatchClick = () => {
     showWatchModal = true;
   };
 
-  const handleOrganize = () => {
-    showOrganizeModal = false;
+  const handleOrganizeComplete = () => {
+    isOrganizing = false;
+    droppedFolder = null;
     onOrganize?.();
   };
 
   const handleCloseModals = () => {
-    showOrganizeModal = false;
     showWatchModal = false;
   };
 </script>
@@ -76,8 +88,15 @@
         {isSearching}
       />
 
-      <!-- Search Results -->
-      {#if searchResults.length > 0}
+      <!-- Organize Results -->
+      {#if isOrganizing && droppedFolder}
+        <OrganizeResults
+          folderPath={droppedFolder}
+          onClear={handleClearOrganize}
+          onComplete={handleOrganizeComplete}
+        />
+      {:else if searchResults.length > 0}
+        <!-- Search Results -->
         <SearchResults results={searchResults} onClear={handleClearSearch} />
       {:else if hasSearched && !isSearching}
         <!-- No Results State -->
@@ -87,12 +106,5 @@
   </div>
 
   <!-- Modals -->
-  <OrganizeModal
-    isOpen={showOrganizeModal}
-    onClose={handleCloseModals}
-    onOrganize={handleOrganize}
-    folderPath={droppedFolder}
-  />
-
   <WatchFolderModal isOpen={showWatchModal} onClose={handleCloseModals} />
 </div>
