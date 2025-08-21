@@ -19,7 +19,7 @@
     )}
   >
     <div class="text-blue-600 font-medium">
-      ✨ Drop file or folder to organize with AI
+      Drop file or folder to organize with AI
     </div>
   </div>
 {/if}
