@@ -1,141 +1,113 @@
-use serde::{Deserialize, Serialize};
-use std::fs;
+//! File Fairy - An intelligent file organization application
+//!
+//! This application provides automated file organization using AI to analyze,
+//! categorize, and intelligently place files in appropriate directories.
+
+mod error;
+mod extractors;
+mod ollama;
+mod services;
+mod types;
+
+use services::{ExtractionService, FileSystemService, OrganizationService};
 use std::path::Path;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WatchedFolder {
-    pub id: String,
-    pub path: String,
-    pub name: String,
-    pub is_active: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DirectoryItem {
-    pub name: String,
-    pub path: String,
-    pub is_directory: bool,
-    pub children: Option<Vec<DirectoryItem>>,
-}
+use types::{DirectoryItem, OrganizationResult, PathInfo};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
 
-#[tauri::command]
-fn select_folder() -> Result<Option<String>, String> {
-    // For now, we'll return a simple mock implementation
-    // The dialog functionality will be handled from the frontend using @tauri-apps/plugin-dialog
-    Ok(Some("/Users/username/Documents".to_string()))
-}
-
+/// Get the folder name from a path
 #[tauri::command]
 fn get_folder_name(path: &str) -> Result<String, String> {
-    let path_obj = Path::new(path);
-    if let Some(name) = path_obj.file_name() {
-        if let Some(name_str) = name.to_str() {
-            Ok(name_str.to_string())
-        } else {
-            Err("Could not convert folder name to string".to_string())
-        }
-    } else {
-        Err("Could not get folder name".to_string())
-    }
+    FileSystemService::get_folder_name(path).map_err(|e| e.to_string())
 }
 
+/// Get path information (name and whether it's a directory)
 #[tauri::command]
-fn get_path_info(path: &str) -> Result<(String, bool), String> {
-    let path_obj = Path::new(path);
-
-    if !path_obj.exists() {
-        return Err(format!("Path does not exist: {}", path));
-    }
-
-    let is_directory = path_obj.is_dir();
-    let name = if is_directory {
-        path_obj
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("Unknown")
-            .to_string()
-    } else {
-        path_obj
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("Unknown")
-            .to_string()
-    };
-
-    Ok((name, is_directory))
+fn get_path_info(path: &str) -> Result<PathInfo, String> {
+    FileSystemService::get_path_info(path).map_err(|e| e.to_string())
 }
 
+/// Check if a folder exists
 #[tauri::command]
 fn folder_exists(path: &str) -> bool {
-    Path::new(path).is_dir()
+    FileSystemService::folder_exists(path)
 }
 
+/// Read directory structure with depth limit
 #[tauri::command]
 fn read_directory_structure(path: &str) -> Result<DirectoryItem, String> {
-    read_directory_recursive(path, 0, 2) // Limit to 2 levels deep
+    FileSystemService::read_directory_structure(path).map_err(|e| e.to_string())
 }
 
-fn read_directory_recursive(
-    path: &str,
-    current_depth: u32,
-    max_depth: u32,
-) -> Result<DirectoryItem, String> {
-    let path_obj = Path::new(path);
+/// Extract content from a file
+#[tauri::command]
+async fn extract_file_content(file_path: &str) -> Result<String, String> {
+    let path = Path::new(file_path);
+    ExtractionService::extract_file_content(&path)
+        .await
+        .map_err(|e| e.to_string())
+}
 
-    if !path_obj.exists() {
-        return Err(format!("Path does not exist: {}", path));
-    }
+/// Check Ollama service health
+#[tauri::command]
+async fn ollama_health_check() -> Result<bool, String> {
+    let organization_service = OrganizationService::new();
+    organization_service.health_check().await
+}
 
-    let name = path_obj
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("Unknown")
-        .to_string();
+/// List available Ollama models
+#[tauri::command]
+async fn ollama_list_models() -> Result<Vec<String>, String> {
+    let organization_service = OrganizationService::new();
+    organization_service.list_models().await
+}
 
-    if !path_obj.is_dir() {
-        return Ok(DirectoryItem {
-            name,
-            path: path.to_string(),
-            is_directory: false,
-            children: None,
-        });
-    }
+/// Generate summary using Ollama
+#[tauri::command]
+async fn ollama_generate_summary(content: &str, model: &str) -> Result<String, String> {
+    let organization_service = OrganizationService::new();
+    organization_service.generate_summary(content, model).await
+}
 
-    let mut children = Vec::new();
+/// Generate filename using Ollama
+#[tauri::command]
+async fn ollama_generate_filename(summary: &str, model: &str) -> Result<String, String> {
+    let organization_service = OrganizationService::new();
+    organization_service.generate_filename(summary, model).await
+}
 
-    if current_depth < max_depth {
-        if let Ok(entries) = fs::read_dir(path) {
-            for entry in entries.flatten() {
-                if let Some(entry_path) = entry.path().to_str() {
-                    if let Ok(item) =
-                        read_directory_recursive(entry_path, current_depth + 1, max_depth)
-                    {
-                        children.push(item);
-                    }
-                }
-            }
-        }
-    }
+/// Generate organization path using Ollama
+#[tauri::command]
+async fn ollama_generate_organization_path(
+    summary: &str,
+    file_path: &str,
+    folder_structure: Vec<String>,
+    model: &str,
+) -> Result<String, String> {
+    let organization_service = OrganizationService::new();
+    organization_service
+        .generate_organization_path(summary, file_path, &folder_structure, model)
+        .await
+}
 
-    // Sort: directories first, then files, both alphabetically
-    children.sort_by(|a, b| match (a.is_directory, b.is_directory) {
-        (true, false) => std::cmp::Ordering::Less,
-        (false, true) => std::cmp::Ordering::Greater,
-        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-    });
+/// Analyze and organize a file
+#[tauri::command]
+async fn analyze_and_organize_file(
+    file_path: &str,
+    summary_model: &str,
+    filename_model: &str,
+) -> Result<OrganizationResult, String> {
+    let organization_service = OrganizationService::new();
+    organization_service
+        .analyze_and_organize_file(file_path, summary_model, filename_model)
+        .await
+}
 
-    Ok(DirectoryItem {
-        name,
-        path: path.to_string(),
-        is_directory: true,
-        children: Some(children),
-    })
+/// Rename/move a file
+#[tauri::command]
+async fn rename_file(old_path: &str, new_path: &str) -> Result<(), String> {
+    let organization_service = OrganizationService::new();
+    organization_service.rename_file(old_path, new_path).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -145,12 +117,18 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
-            select_folder,
             get_folder_name,
             get_path_info,
             folder_exists,
-            read_directory_structure
+            read_directory_structure,
+            extract_file_content,
+            ollama_health_check,
+            ollama_list_models,
+            ollama_generate_summary,
+            ollama_generate_filename,
+            ollama_generate_organization_path,
+            analyze_and_organize_file,
+            rename_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
