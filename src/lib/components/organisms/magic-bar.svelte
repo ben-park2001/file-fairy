@@ -5,7 +5,6 @@
   import { cn } from "$lib/utils";
   import { onMount } from "svelte";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
-  import { invoke } from "@tauri-apps/api/core";
 
   interface Props {
     onFolderDrop: (folderPath: string) => void;
@@ -41,10 +40,6 @@
           if (paths && paths.length > 0) {
             const droppedPath = paths[0];
             try {
-              const [name, isDirectory] = await invoke<[string, boolean]>(
-                "get_path_info",
-                { path: droppedPath }
-              );
               onFolderDrop(droppedPath);
             } catch (error) {
               console.error("Failed to process dropped path:", error);
