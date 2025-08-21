@@ -1,24 +1,67 @@
-// Common interfaces used across components
-export interface SearchResult {
-  id: number;
-  filename: string;
-  path: string;
-  snippet: string;
-  type: string;
+//! Type definitions for the File Fairy application
+//! Contains data structures for components, services, and application state
+
+// === BASE COMPONENT TYPES ===
+
+/// Base properties that all components can accept
+export interface BaseProps {
+  class?: string;
+  id?: string;
 }
 
+// === CORE DATA INTERFACES ===
+
+/// Search result from file content analysis
+export interface SearchResult {
+  readonly id: number;
+  readonly filename: string;
+  readonly path: string;
+  readonly snippet: string;
+  readonly type: string;
+}
+
+/// Directory tree item with hierarchical structure
 export interface DirectoryItem {
-  name: string;
-  path: string;
-  is_directory: boolean;
-  children?: DirectoryItem[];
+  readonly name: string;
+  readonly path: string;
+  readonly is_directory: boolean;
+  readonly children?: readonly DirectoryItem[];
+}
+
+/// Basic path information
+export interface PathInfo {
+  readonly name: string;
+  readonly is_directory: boolean;
+}
+
+/// AI analysis result from Rust backend (matches Rust OrganizationResult)
+export interface OrganizationResult {
+  readonly summary: string;
+  readonly new_filename: string;
+}
+
+/// Enhanced file organization result with UI state and additional metadata
+export interface FileOrganizationResult {
+  filePath: string; // Mutable for path updates when files are moved
+  readonly summary: string;
+  readonly originalFilename: string;
+  readonly newFilename: string;
+  status: "completed" | "error" | "preview"; // Mutable for progress tracking
+  error?: string; // Mutable for error reporting
+  isSelected?: boolean; // Mutable for UI interaction
+}
+
+/// Progress tracking for batch operations
+export interface OrganizationProgress {
+  readonly totalFiles: number;
+  processedFiles: number; // Mutable for progress tracking
+  isCompleted: boolean; // Mutable for state management
+  results: FileOrganizationResult[]; // Mutable for accumulation
+  phase: "analyzing" | "preview" | "applying" | "completed"; // Mutable for state tracking
+  currentFile?: string; // Mutable for progress indication
 }
 
 // Component prop types
-export interface BaseProps {
-  class?: string;
-}
-
 export interface IconProps extends BaseProps {
   icon: any;
   size?: "sm" | "md" | "lg";
