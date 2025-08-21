@@ -3,24 +3,23 @@
   import Icon from "$lib/components/atoms/icon.svelte";
   import Text from "$lib/components/atoms/text.svelte";
   import FileTreeItem from "./file-tree-item.svelte";
+  import type { DirectoryItem, BaseProps } from "$lib/types/components";
 
-  interface DirectoryItem {
-    name: string;
-    path: string;
-    is_directory: boolean;
-    children?: DirectoryItem[];
-  }
-
-  interface Props {
+  interface Props extends BaseProps {
     item: DirectoryItem;
     depth?: number;
     showPath?: boolean;
   }
 
-  const { item, depth = 0, showPath = false }: Props = $props();
+  const {
+    item,
+    depth = 0,
+    showPath = false,
+    class: className,
+  }: Props = $props();
 </script>
 
-<div class={depth > 0 ? "ml-6" : ""}>
+<div class={depth > 0 ? "ml-6" : className}>
   <div class="flex items-center gap-2 py-1">
     <Icon
       icon={item.is_directory ? Folder : File}
