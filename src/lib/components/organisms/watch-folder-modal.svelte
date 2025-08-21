@@ -63,30 +63,34 @@
 </script>
 
 <Dialog open={isOpen} onOpenChange={onClose}>
-  <DialogContent class="max-w-md">
-    <DialogHeader>
+  <DialogContent class="max-w-2xl max-h-[90vh] flex flex-col">
+    <DialogHeader class="flex-shrink-0">
       <DialogTitle>
         <Text text="Watched Folders" weight="medium" />
       </DialogTitle>
     </DialogHeader>
 
-    <div class="py-4 space-y-3">
-      {#each folders as folder}
-        <WatchedFolderItem
-          {folder}
-          onToggle={toggleFolder}
-          onRemove={removeFolder}
-        />
-      {/each}
-
-      {#if folders.length === 0}
-        <div class="text-center py-8">
-          <Text text="No folders being watched" color="muted" />
+    <div class="flex-1 overflow-hidden flex flex-col py-4">
+      {#if folders.length > 0}
+        <div class="flex-1 overflow-y-auto space-y-3 p-4">
+          {#each folders as folder}
+            <WatchedFolderItem
+              {folder}
+              onToggle={toggleFolder}
+              onRemove={removeFolder}
+            />
+          {/each}
+        </div>
+      {:else}
+        <div class="flex-1 flex items-center justify-center">
+          <div class="text-center py-8">
+            <Text text="No folders being watched" color="muted" />
+          </div>
         </div>
       {/if}
     </div>
 
-    <div class="flex gap-2 justify-between">
+    <div class="flex gap-2 justify-between border-t pt-4 flex-shrink-0">
       <Button
         variant="outline"
         onclick={addFolder}
