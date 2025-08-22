@@ -8,6 +8,7 @@ use std::path::Path;
 use tokio::fs;
 
 /// Service for file organization operations
+#[derive(Clone)]
 pub struct OrganizationService {
     ollama: OllamaService,
 }

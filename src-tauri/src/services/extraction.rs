@@ -7,6 +7,7 @@ use crate::{error::AppResult, extractors::extractor_from_file_path};
 use std::path::Path;
 
 /// Service for file content extraction
+#[derive(Clone)]
 pub struct ExtractionService;
 
 impl ExtractionService {

@@ -20,6 +20,7 @@ pub struct OllamaResponse {
 }
 
 /// Service for interacting with Ollama AI models
+#[derive(Clone)]
 pub struct OllamaService {
     client: reqwest::Client,
     base_url: String,
