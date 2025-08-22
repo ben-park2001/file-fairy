@@ -50,7 +50,9 @@ impl ExtractorType {
 /// An optional extractor matching the file extension
 pub fn extractor_from_file_path(file_path: &Path) -> Option<ExtractorType> {
     match file_path.extension().and_then(|ext| ext.to_str()) {
-        Some("txt" | "md") => Some(ExtractorType::Text(text::TextExtractor::new())),
+        Some("txt" | "md" | "rst" | "log" | "csv") => {
+            Some(ExtractorType::Text(text::TextExtractor::new()))
+        }
         Some("pdf") => Some(ExtractorType::Pdf(pdf::PdfExtractor::new())),
         Some("hwp") => Some(ExtractorType::Hwp(hwp::HwpExtractor::new())),
         Some("docx") => Some(ExtractorType::Docx(office::DocxExtractor::new())),
