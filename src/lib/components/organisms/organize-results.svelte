@@ -118,7 +118,7 @@
             />
           </div>
 
-          <div class="space-y-3 max-h-96 overflow-y-auto pr-2">
+          <div class="space-y-3 pr-2">
             {#each state.filenamePreviews as preview, index}
               <FileRenamePreview
                 {preview}
