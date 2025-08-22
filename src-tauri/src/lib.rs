@@ -9,9 +9,19 @@ mod ollama;
 mod services;
 mod types;
 
-use services::{ExtractionService, FileSystemService, OrganizationService};
+use services::{ExtractionService, FileSystemService, OrganizationService, WatchService};
 use std::path::Path;
-use types::{DirectoryItem, OrganizationResult, PathInfo};
+use std::sync::{Arc, OnceLock};
+use types::{DirectoryItem, OrganizationResult, PathInfo, WatchedFolderInfo};
+
+// Global watch service instance
+static WATCH_SERVICE: OnceLock<Arc<WatchService>> = OnceLock::new();
+
+fn get_watch_service() -> Arc<WatchService> {
+    WATCH_SERVICE
+        .get_or_init(|| Arc::new(WatchService::new()))
+        .clone()
+}
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
@@ -110,6 +120,65 @@ async fn rename_file(old_path: &str, new_path: &str) -> Result<(), String> {
     organization_service.rename_file(old_path, new_path).await
 }
 
+// Watch Service Commands
+
+/// Register a folder to watch for automatic file organization
+#[tauri::command]
+async fn watch_register_folder(folder_path: &str) -> Result<(), String> {
+    let watch_service = get_watch_service();
+    let path = Path::new(folder_path);
+    watch_service.register_folder(path).await
+}
+
+/// Pause watching a folder
+#[tauri::command]
+async fn watch_pause_folder(folder_path: &str) -> Result<(), String> {
+    let watch_service = get_watch_service();
+    let path = Path::new(folder_path);
+    watch_service.pause_folder(path)
+}
+
+/// Resume watching a folder
+#[tauri::command]
+async fn watch_resume_folder(folder_path: &str) -> Result<(), String> {
+    let watch_service = get_watch_service();
+    let path = Path::new(folder_path);
+    watch_service.resume_folder(path)
+}
+
+/// Remove a folder from watch list
+#[tauri::command]
+async fn watch_remove_folder(folder_path: &str) -> Result<(), String> {
+    let watch_service = get_watch_service();
+    let path = Path::new(folder_path);
+    watch_service.remove_folder(path)
+}
+
+/// List all watched folders
+#[tauri::command]
+async fn watch_list_folders() -> Result<Vec<WatchedFolderInfo>, String> {
+    let watch_service = get_watch_service();
+    Ok(watch_service.list_watched_folders())
+}
+
+/// Update watch configuration
+#[tauri::command]
+async fn watch_update_config(recursive: bool, process_existing_files: bool) -> Result<(), String> {
+    let watch_service = get_watch_service();
+    let config = services::watch::WatchConfig {
+        recursive,
+        process_existing_files,
+    };
+    watch_service.update_config(config)
+}
+
+/// Get current watch configuration
+#[tauri::command]
+async fn watch_get_config() -> Result<services::watch::WatchConfig, String> {
+    let watch_service = get_watch_service();
+    watch_service.get_config()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -128,7 +197,14 @@ pub fn run() {
             ollama_generate_filename,
             ollama_generate_organization_path,
             analyze_and_organize_file,
-            rename_file
+            rename_file,
+            watch_register_folder,
+            watch_pause_folder,
+            watch_resume_folder,
+            watch_remove_folder,
+            watch_list_folders,
+            watch_update_config,
+            watch_get_config
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
