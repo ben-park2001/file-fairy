@@ -6,9 +6,23 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-/// Represents a watched folder in the application
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Represents the state of a watched folder
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WatchState {
+    Active,
+    Paused,
+}
+
+/// Information about a watched folder
+#[derive(Debug, Clone)]
 pub struct WatchedFolder {
+    pub path: std::path::PathBuf,
+    pub state: WatchState,
+}
+
+/// Represents a watched folder in the application for API responses
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WatchedFolderInfo {
     pub id: String,
     pub path: String,
     pub name: String,
