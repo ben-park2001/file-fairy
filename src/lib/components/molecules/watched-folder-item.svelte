@@ -8,11 +8,38 @@
 
   interface Props {
     folder: WatchedFolder;
-    onToggle: (id: string) => void;
-    onRemove: (id: string) => void;
+    onToggle: (folderPath: string, currentState: boolean) => Promise<void>;
+    onRemove: (folderPath: string) => Promise<void>;
   }
 
   const { folder, onToggle, onRemove }: Props = $props();
+
+  let isToggling = $state(false);
+  let isRemoving = $state(false);
+
+  const handleToggle = async () => {
+    if (isToggling) return;
+    isToggling = true;
+    try {
+      await onToggle(folder.path, folder.is_active);
+    } catch (error) {
+      console.error("Failed to toggle folder:", error);
+    } finally {
+      isToggling = false;
+    }
+  };
+
+  const handleRemove = async () => {
+    if (isRemoving) return;
+    isRemoving = true;
+    try {
+      await onRemove(folder.path);
+    } catch (error) {
+      console.error("Failed to remove folder:", error);
+    } finally {
+      isRemoving = false;
+    }
+  };
 </script>
 
 <div class="flex items-center gap-3 p-3 rounded-lg border">
@@ -22,14 +49,11 @@
     <Text text={folder.path} size="sm" color="muted" class="truncate" />
   </div>
   <div class="flex items-center gap-2">
-    <Switch
-      checked={folder.isActive}
-      onCheckedChange={() => onToggle(folder.id)}
-    />
     <Button
       variant="ghost"
       size="sm"
-      onclick={() => onRemove(folder.id)}
+      onclick={handleRemove}
+      disabled={isRemoving}
       class="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
     >
       <Icon icon={X} size="sm" />
