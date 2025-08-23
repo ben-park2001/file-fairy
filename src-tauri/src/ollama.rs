@@ -19,6 +19,17 @@ pub struct OllamaResponse {
     pub done: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbeddingRequest {
+    pub model: String,
+    pub prompt: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbeddingResponse {
+    pub embedding: Vec<f64>,
+}
+
 /// Service for interacting with Ollama AI models
 #[derive(Clone)]
 pub struct OllamaService {
@@ -51,31 +62,9 @@ impl OllamaService {
         }
     }
 
-    /// Generate a summary from file content using Ollama
-    pub async fn generate_summary(&self, content: &str, model: &str) -> Result<String, String> {
-        let truncated_content = content
-            .chars()
-            .take(TRUNCATED_CONTENT_LENGTH)
-            .collect::<String>();
-        let prompt = Self::create_summary_prompt(&truncated_content);
-        self.generate_text(&prompt, model).await
-    }
-
     /// Generate a filename from summary using Ollama
     pub async fn generate_filename(&self, summary: &str, model: &str) -> Result<String, String> {
         let prompt = Self::create_filename_prompt(summary);
-        self.generate_text(&prompt, model).await
-    }
-
-    /// Generate an organization path from summary and context
-    pub async fn generate_organization_path(
-        &self,
-        summary: &str,
-        file_path: &str,
-        folder_structure: &[String],
-        model: &str,
-    ) -> Result<String, String> {
-        let prompt = Self::create_organization_prompt(summary, file_path, folder_structure);
         self.generate_text(&prompt, model).await
     }
 
@@ -150,14 +139,6 @@ impl OllamaService {
         Ok(ollama_response.response.trim().to_string())
     }
 
-    /// Create a prompt for summary generation
-    fn create_summary_prompt(content: &str) -> String {
-        format!(
-            "Read the text below and write a short summary.\nRules:\n* Maximum 150 words.\n* Use specific keywords from the text.\n* Focus on the main topic, key ideas, and important keywords.\n* Do not add opinions or extra details.\n* Write in clear, plain language.\n\nText: \"\"\"{}\"\"\"\n\nSummary:",
-            content
-        )
-    }
-
     /// Create a prompt for filename generation
     fn create_filename_prompt(summary: &str) -> String {
         format!(
@@ -165,18 +146,42 @@ impl OllamaService {
             summary
         )
     }
+    
+    /// Generate embeddings for text using Ollama
+    /// <Example Usage>
+    /// let embeddings = ollama_service
+    ///     .generate_embedding("테스트 문장입니다", "dengcao/Qwen3-Embedding-0.6B:Q8_0")
+    ///     .await?;
+    /// println!("Embedding vector length: {}", embeddings.len());
 
-    /// Create a prompt for organization path generation
-    fn create_organization_prompt(
-        summary: &str,
-        file_path: &str,
-        folder_structure: &[String],
-    ) -> String {
-        let folder_list = folder_structure.join(", ");
+    pub async fn generate_embedding(&self, text: &str, model: &str) -> Result<Vec<f64>, String> {
+        let request = EmbeddingRequest {
+            model: model.to_string(),
+            prompt: text.to_string(),
+        };
 
-        format!(
-            "Based on the file summary and existing folder structure, suggest the best organization path.\n\nFile Summary: \"\"\"{}\"\"\"\nFile Path: {}\nExisting Folders: [{}]\n\nRules:\n* Choose from existing folders when possible\n* If no existing folder fits, suggest ONE new folder name\n* Use clear, descriptive folder names\n* Focus on content type, subject matter, or purpose\n* Output format: folder_name/subfolder_name (if needed)\n* Keep it simple - maximum 2 levels deep\n\nOrganization Path:",
-            summary, file_path, folder_list
-        )
+        let url = format!("{}/api/embeddings", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to send embedding request to Ollama: {}", e))?;
+
+        if !response.status().is_success() {
+            return Err(format!(
+                "Ollama embedding request failed with status: {}",
+                response.status()
+            ));
+        }
+
+        let embedding_response: EmbeddingResponse = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse Ollama embedding response: {}", e))?;
+
+        Ok(embedding_response.embedding)
     }
+
 }
