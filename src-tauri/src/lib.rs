@@ -83,7 +83,6 @@ async fn ollama_generate_filename(summary: &str, model: &str) -> Result<String, 
 #[tauri::command]
 async fn analyze_and_organize_file(
     file_path: &str,
-    summary_model: &str,
     filename_model: &str,
 ) -> Result<OrganizationResult, String> {
     let organization_service = OrganizationService::new();
