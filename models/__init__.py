@@ -10,33 +10,33 @@ from .schema import (
     IndexFolderRequest,
     SearchRequest,
     GenerateNameRequest,
-    
+    ExtractTextRequest,
     # Response models
     PingResponse,
     IndexFolderResponse,
     SearchResponse,
     GenerateNameResponse,
+    ExtractTextResponse,
     ErrorResponse,
-    
     # Data models
     FileInfo,
-    SearchResult
+    SearchResult,
 )
 
 __all__ = [
     # Request models
     "IndexFolderRequest",
-    "SearchRequest", 
+    "SearchRequest",
     "GenerateNameRequest",
-    
+    "ExtractTextRequest",
     # Response models
     "PingResponse",
     "IndexFolderResponse",
     "SearchResponse",
     "GenerateNameResponse",
+    "ExtractTextResponse",
     "ErrorResponse",
-    
     # Data models
     "FileInfo",
-    "SearchResult"
+    "SearchResult",
 ]
