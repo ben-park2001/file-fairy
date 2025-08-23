@@ -27,7 +27,7 @@ pub struct EmbeddingRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EmbeddingResponse {
-    pub embedding: Vec<f64>,
+    pub embedding: Vec<f32>,
 }
 
 /// Service for interacting with Ollama AI models
@@ -154,7 +154,7 @@ impl OllamaService {
     ///     .await?;
     /// println!("Embedding vector length: {}", embeddings.len());
 
-    pub async fn generate_embedding(&self, text: &str, model: &str) -> Result<Vec<f64>, String> {
+    pub async fn generate_embedding(&self, text: &str, model: &str) -> Result<Vec<f32>, String> {
         let request = EmbeddingRequest {
             model: model.to_string(),
             prompt: text.to_string(),

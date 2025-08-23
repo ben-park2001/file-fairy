@@ -25,14 +25,13 @@ impl OrganizationService {
     pub async fn analyze_and_organize_file(
         &self,
         file_path: &str,
-        summary_model: &str,
         filename_model: &str,
     ) -> Result<OrganizationResult, String> {
         // Validate input parameters
         if file_path.is_empty() {
             return Err("File path cannot be empty".to_string());
         }
-        if summary_model.is_empty() || filename_model.is_empty() {
+        if filename_model.is_empty() {
             return Err("Model name cannot be empty".to_string());
         }
 
@@ -46,12 +45,8 @@ impl OrganizationService {
             return Err("File content is empty or could not be extracted".to_string());
         }
 
-        // Step 2: Generate summary
-        let summary = self
-            .ollama
-            .generate_summary(&content, summary_model)
-            .await
-            .map_err(|e| format!("Summary generation failed: {}", e))?;
+        // Step 2: Create dummy summary (placeholder for now)
+        let summary = "hello world".to_string();
 
         // Step 3: Generate filename
         let new_name = self
@@ -114,27 +109,9 @@ impl OrganizationService {
         self.ollama.list_models().await
     }
 
-    /// Generate summary for given content
-    pub async fn generate_summary(&self, content: &str, model: &str) -> Result<String, String> {
-        self.ollama.generate_summary(content, model).await
-    }
-
     /// Generate filename for given summary
     pub async fn generate_filename(&self, summary: &str, model: &str) -> Result<String, String> {
         self.ollama.generate_filename(summary, model).await
-    }
-
-    /// Generate organization path for given parameters
-    pub async fn generate_organization_path(
-        &self,
-        summary: &str,
-        file_path: &str,
-        folder_structure: &[String],
-        model: &str,
-    ) -> Result<String, String> {
-        self.ollama
-            .generate_organization_path(summary, file_path, folder_structure, model)
-            .await
     }
 }
 

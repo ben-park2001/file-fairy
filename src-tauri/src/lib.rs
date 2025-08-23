@@ -72,32 +72,11 @@ async fn ollama_list_models() -> Result<Vec<String>, String> {
     organization_service.list_models().await
 }
 
-/// Generate summary using Ollama
-#[tauri::command]
-async fn ollama_generate_summary(content: &str, model: &str) -> Result<String, String> {
-    let organization_service = OrganizationService::new();
-    organization_service.generate_summary(content, model).await
-}
-
 /// Generate filename using Ollama
 #[tauri::command]
 async fn ollama_generate_filename(summary: &str, model: &str) -> Result<String, String> {
     let organization_service = OrganizationService::new();
     organization_service.generate_filename(summary, model).await
-}
-
-/// Generate organization path using Ollama
-#[tauri::command]
-async fn ollama_generate_organization_path(
-    summary: &str,
-    file_path: &str,
-    folder_structure: Vec<String>,
-    model: &str,
-) -> Result<String, String> {
-    let organization_service = OrganizationService::new();
-    organization_service
-        .generate_organization_path(summary, file_path, &folder_structure, model)
-        .await
 }
 
 /// Analyze and organize a file
@@ -109,7 +88,7 @@ async fn analyze_and_organize_file(
 ) -> Result<OrganizationResult, String> {
     let organization_service = OrganizationService::new();
     organization_service
-        .analyze_and_organize_file(file_path, summary_model, filename_model)
+        .analyze_and_organize_file(file_path, filename_model)
         .await
 }
 
@@ -193,9 +172,7 @@ pub fn run() {
             extract_file_content,
             ollama_health_check,
             ollama_list_models,
-            ollama_generate_summary,
             ollama_generate_filename,
-            ollama_generate_organization_path,
             analyze_and_organize_file,
             rename_file,
             watch_register_folder,
