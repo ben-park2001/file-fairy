@@ -4,7 +4,6 @@ use std::time::Duration;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_BASE_URL: &str = "http://localhost:11434";
-const TRUNCATED_CONTENT_LENGTH: usize = 3500;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OllamaRequest {
@@ -146,7 +145,7 @@ impl OllamaService {
             summary
         )
     }
-    
+
     /// Generate embeddings for text using Ollama
     /// <Example Usage>
     /// let embeddings = ollama_service
@@ -183,5 +182,4 @@ impl OllamaService {
 
         Ok(embedding_response.embedding)
     }
-
 }
