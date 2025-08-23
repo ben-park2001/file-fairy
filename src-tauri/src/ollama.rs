@@ -27,7 +27,7 @@ pub struct EmbeddingRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EmbeddingResponse {
-    pub embedding: Vec<f64>,
+    pub embedding: Vec<f32>,
 }
 
 /// Service for interacting with Ollama AI models
