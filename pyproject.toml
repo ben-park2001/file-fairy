@@ -1,9 +1,12 @@
 [project]
 name = "file-fairy"
 version = "0.1.0"
-description = "Add your description here"
+description = "Local file organizing application with AI-powered features"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.116.1",
+    "pydantic>=2.0.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
 ]

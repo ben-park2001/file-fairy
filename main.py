@@ -1,7 +1,109 @@
+"""
+File Fairy Backend Server
+
+A FastAPI-based backend server for a local file organizing application.
+This server provides AI-powered features including file indexing, semantic search,
+and intelligent filename generation.
+
+The server is designed to be run as a sidecar process by a Tauri desktop application.
+"""
+
+import logging
+import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+from api.endpoints import router
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler("file_fairy.log")],
+)
+
+logger = logging.getLogger(__name__)
+
+# Create FastAPI application
+app = FastAPI(
+    title="File Fairy Backend",
+    description="AI-powered file organizing backend server",
+    version="0.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+# Configure CORS for desktop application integration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:*", "https://tauri.localhost"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include API routes
+app.include_router(router, prefix="/api/v1")
+
+
+# Root endpoint
 @app.get("/")
-async def read_root():
-    return {"Hello": "World"}
+async def root():
+    """Root endpoint providing basic service information."""
+    return {
+        "service": "File Fairy Backend",
+        "version": "0.1.0",
+        "status": "running",
+        "docs": "/docs",
+        "api": "/api/v1",
+    }
+
+
+# Health check endpoint (alternative to /api/v1/ping)
+@app.get("/health")
+async def health_check():
+    """Simple health check endpoint."""
+    return {"status": "healthy"}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan events."""
+
+    # Initialize services on startup
+    logger.info("File Fairy Backend starting up...")
+
+    # TODO: Initialize AI models and databases here
+    # - Load sentence-transformers model
+    # - Initialize LanceDB connection
+    # - Load llama-cpp-python model
+    # - Verify all dependencies
+
+    logger.info("File Fairy Backend started successfully")
+
+    yield
+
+    # Clean up resources on shutdown
+    logger.info("File Fairy Backend shutting down...")
+
+    # TODO: Clean up resources
+    # - Close database connections
+    # - Unload AI models
+    # - Save any pending data
+
+    logger.info("File Fairy Backend shutdown complete")
+
+
+# Main entry point
+if __name__ == "__main__":
+    logger.info("Starting File Fairy Backend server...")
+
+    # Run the server
+    uvicorn.run(
+        "main:app",
+        host="127.0.0.1",  # Localhost only for security
+        port=8000,
+        reload=True,  # Enable auto-reload during development
+        log_level="info",
+    )
