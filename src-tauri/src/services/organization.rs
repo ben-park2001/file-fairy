@@ -6,10 +6,12 @@
 use crate::{ollama::OllamaService, services::ExtractionService, types::OrganizationResult};
 use std::path::Path;
 use tokio::fs;
+use hdbscan::Hdbscan;
+use std::collections::HashMap;
 
 // Configuration constants
-const CHUNK_SIZE: usize = 300; // Characters per chunk
-const CHUNK_OVERLAP: usize = 30; // Overlap between chunks to maintain context
+const CHUNK_SIZE: usize = 1000; // Characters per chunk
+const CHUNK_OVERLAP: usize = 100; // Overlap between chunks to maintain context
 const EMBEDDING_MODEL: &str = "dengcao/Qwen3-Embedding-0.6B:Q8_0";
 const MAX_REPRESENTATIVE_CHUNKS: usize = 5; // Maximum number of representative chunks
 
@@ -112,22 +114,26 @@ impl OrganizationService {
         }
 
         let mut chunks = Vec::new();
-        let mut start = 0;
+        let mut char_indices: Vec<_> = content.char_indices().collect();
+        char_indices.push((content.len(), '\0')); // 끝 인덱스 추가
         
-        while start < content.len() {
-            let end = (start + CHUNK_SIZE).min(content.len());
-            let chunk = content[start..end].to_string();
+        let mut start_idx = 0;
+        
+        while start_idx < char_indices.len() - 1 {
+            let start_byte = char_indices[start_idx].0;
+            let end_idx = (start_idx + CHUNK_SIZE).min(char_indices.len() - 1);
+            let end_byte = char_indices[end_idx].0;
+            
+            let chunk = content[start_byte..end_byte].to_string();
             chunks.push(chunk);
             
-            // Move start position with overlap
-            start += CHUNK_SIZE - CHUNK_OVERLAP;
+            // Move with overlap
+            start_idx += CHUNK_SIZE - CHUNK_OVERLAP;
             
-            // Prevent infinite loop if overlap >= chunk_size
-            if start <= (chunks.len() - 1) * (CHUNK_SIZE - CHUNK_OVERLAP) {
+            if CHUNK_OVERLAP >= CHUNK_SIZE {
                 break;
             }
         }
-        
         Ok(chunks)
     }
 
@@ -156,20 +162,83 @@ impl OrganizationService {
         if chunks.len() != embeddings.len() {
             return Err("Chunks and embeddings length mismatch".to_string());
         }
+
+        // 1. HDBSCAN 클러스터링
+        let clusterer = Hdbscan::default_hyper_params(embeddings);
+        let labels = clusterer.cluster()
+            .map_err(|e| format!("Clustering failed: {:?}", e))?;
+
+        // 2. 클러스터별 멤버들 그룹화
+        let mut clusters: HashMap<i32, Vec<usize>> = HashMap::new();
+        for (idx, &label) in labels.iter().enumerate() {
+            if label != -1 { // noise 제외
+                clusters.entry(label).or_default().push(idx);
+            }
+        }
+
+        // 3. 각 클러스터의 representative 선택
+        let mut cluster_representatives: Vec<(usize, usize)> = Vec::new(); // (cluster_size, chunk_index)
         
-        let take_count = MAX_REPRESENTATIVE_CHUNKS.min(chunks.len());
+        for members in clusters.values() {
+            let representative_idx = Self::find_closest_to_centroid(embeddings, members);
+            cluster_representatives.push((members.len(), representative_idx));
+        }
         
-        let representative_data = chunks
-            .iter()
-            .zip(embeddings.iter())
+        println!("cluster reperes >>{:?}<<\n",cluster_representatives);
+        // 4. 클러스터 크기로 정렬 후 상위 n개 선택
+        cluster_representatives.sort_by(|a, b| b.0.cmp(&a.0));
+        let take_count = MAX_REPRESENTATIVE_CHUNKS.min(cluster_representatives.len());
+        let representative_data = cluster_representatives
+            .into_iter()
             .take(take_count)
             .enumerate()
-            .map(|(index, (chunk, embedding))| {
-                RepresentativeData::new(chunk.clone(), embedding.clone(), index)
+            .map(|(index, (_, chunk_idx))| {
+                RepresentativeData::new(
+                    chunks[chunk_idx].clone(),
+                    embeddings[chunk_idx].clone(),
+                    index
+                )
             })
             .collect();
         
+        println!("reperesenta >>{:?}<<\n",representative_data);
         Ok(representative_data)
+    }
+
+    fn find_closest_to_centroid(embeddings: &[Vec<f32>], member_indices: &[usize]) -> usize {
+        // centroid 계산
+        let dim = embeddings[member_indices[0]].len();
+        let mut centroid = vec![0.0; dim];
+        
+        for &idx in member_indices {
+            for i in 0..dim {
+                centroid[i] += embeddings[idx][i];
+            }
+        }
+        for i in 0..dim {
+            centroid[i] /= member_indices.len() as f32;
+        }
+
+        // centroid에 가장 가까운 embedding 찾기
+        let mut closest_idx = member_indices[0];
+        let mut min_distance = Self::euclidean_distance(&embeddings[closest_idx], &centroid);
+
+        for &idx in &member_indices[1..] {
+            let distance = Self::euclidean_distance(&embeddings[idx], &centroid);
+            if distance < min_distance {
+                min_distance = distance;
+                closest_idx = idx;
+            }
+        }
+
+        closest_idx
+    }
+
+    fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
+        a.iter().zip(b.iter())
+            .map(|(x, y)| (x - y).powi(2))
+            .sum::<f32>()
+            .sqrt()
     }
 
     /// Combine representative chunks into a single summary string

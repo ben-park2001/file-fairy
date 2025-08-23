@@ -64,6 +64,7 @@ impl OllamaService {
     /// Generate a filename from summary using Ollama
     pub async fn generate_filename(&self, summary: &str, model: &str) -> Result<String, String> {
         let prompt = Self::create_filename_prompt(summary);
+        println!("Prompt: {} <<", prompt);
         self.generate_text(&prompt, model).await
     }
 

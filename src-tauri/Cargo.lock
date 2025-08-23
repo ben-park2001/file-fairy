@@ -2712,6 +2712,7 @@ dependencies = [
  "async-trait",
  "dotext",
  "futures",
+ "hdbscan",
  "hwp",
  "lancedb",
  "notify",
@@ -3377,6 +3378,16 @@ dependencies = [
  "allocator-api2",
  "equivalent",
  "foldhash",
+]
+
+[[package]]
+name = "hdbscan"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95bd4d39a1e96420f31b20ac30d5052ba76d9b2bde2987beade48445073a063c"
+dependencies = [
+ "kdtree",
+ "num-traits",
 ]
 
 [[package]]
@@ -4049,6 +4060,16 @@ checksum = "5dea2b27dd239b2556ed7a25ba842fe47fd602e7fc7433c2a8d6106d4d9edd70"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "kdtree"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f0a0e9f770b65bac9aad00f97a67ab5c5319effed07f6da385da3c2115e47ba"
+dependencies = [
+ "num-traits",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
