@@ -10,8 +10,9 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
 
-from models.schema import FileInfo, IndexFolderResponse
-from utils.file_parser import extract_text_from_file, is_file_supported
+from models.schema import FileInfo, IndexFolderResponse, ExtractTextRequest
+from utils.file_parser import extract_text, is_file_supported
+from core.database import add_file
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -79,17 +80,27 @@ def process_folder(
                 # Extract file information
                 file_info = _get_file_info(file_path)
 
-                # TODO: Extract text content
-                text_content = extract_text_from_file(file_path)
+                # Extract text content
+                request = ExtractTextRequest(file_path=file_path, clean=True)
+                response = extract_text(request)
 
-                # TODO: Generate embeddings using sentence-transformers
-                # embeddings = generate_embeddings(text_content)
+                if not response.success:
+                    failed_files.append(file_path)
+                    logger.error(
+                        f"Failed to extract text from {file_path}: {response.error}"
+                    )
+                    continue
 
-                # TODO: Store in LanceDB vector database
-                # store_embeddings(file_path, embeddings, file_info)
+                text_content = response.content
 
-                indexed_files.append(file_info)
-                logger.debug(f"Successfully indexed: {file_path}")
+                # Add to vector database
+                success = add_file(file_path, text_content, file_info.file_name)
+
+                if success:
+                    indexed_files.append(file_info)
+                    logger.debug(f"Successfully indexed: {file_path}")
+                else:
+                    failed_files.append(file_path)
 
             except Exception as e:
                 failed_files.append(file_path)
@@ -208,31 +219,21 @@ def get_index_status() -> dict:
     """
     Get the current status of the search index.
 
-    This is a placeholder function that would return information about
-    the current state of the vector database and indexed files.
-
     Returns:
         dict: Index status information
     """
-    # TODO: Implement actual index status checking
-    return {
-        "total_indexed_files": 0,
-        "last_update": None,
-        "index_size_mb": 0,
-        "status": "empty",
-    }
+    from core.database import get_index_stats
+
+    return get_index_stats()
 
 
 def clear_index() -> bool:
     """
     Clear the entire search index.
 
-    This is a placeholder function that would clear all embeddings
-    and index data from the vector database.
-
     Returns:
         bool: True if successful
     """
-    # TODO: Implement actual index clearing
-    logger.warning("Index clearing not implemented yet")
-    return True
+    from core.database import clear_index as db_clear_index
+
+    return db_clear_index()
