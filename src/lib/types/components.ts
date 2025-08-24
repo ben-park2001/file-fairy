@@ -28,10 +28,28 @@ export interface DirectoryItem {
   readonly children?: readonly DirectoryItem[];
 }
 
-/// Basic path information
+/// Basic path information (matches Rust PathInfo)
 export interface PathInfo {
   readonly name: string;
   readonly is_directory: boolean;
+}
+
+/// Watched folder information (matches Rust WatchedFolderInfo)
+export interface WatchedFolderInfo {
+  readonly id: string;
+  readonly path: string;
+  readonly name: string;
+  readonly is_active: boolean;
+}
+
+/// File chunk with embedding data (matches Rust FileChunkSchema)
+export interface FileChunkSchema {
+  readonly chunk_id: number;
+  readonly created_at: number;
+  readonly file_path: string;
+  readonly file_name: string;
+  readonly text: string;
+  readonly vector: number[];
 }
 
 /// AI analysis result from Rust backend (matches Rust OrganizationResult)
@@ -53,7 +71,7 @@ export interface FileOrganizationResult {
 
 /// Progress tracking for batch operations
 export interface OrganizationProgress {
-  readonly totalFiles: number;
+  totalFiles: number;
   processedFiles: number; // Mutable for progress tracking
   isCompleted: boolean; // Mutable for state management
   results: FileOrganizationResult[]; // Mutable for accumulation
