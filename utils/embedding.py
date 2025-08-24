@@ -1,6 +1,8 @@
 import logging
 from typing import List, Optional
 from llama_cpp import Llama
+from sklearn.cluster import MiniBatchKMeans
+from sklearn.metrics import pairwise_distances_argmin_min
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -129,3 +131,46 @@ def calculate_text_relevance(text: str, filename: str, query: str) -> float:
 
     # Normalize score to 0-1 range
     return min(1.0, score)
+
+
+def extract_key_chunks(
+    chunk_embeddings: List[List[float]],
+    chunks_text: list,
+    n_clusters: int = 4,
+):
+    """
+    Extracts key text chunks from a document using MiniBatchKMeans clustering.
+
+    Args:
+        chunk_embeddings: A NumPy array of embedding vectors for each text chunk.
+        chunks_text: A list of the original text strings for each chunk.
+        n_clusters: The number of key themes (chunks) to extract.
+
+    Returns:
+        A list of the most representative text chunks.
+    """
+    if len(chunks_text) <= n_clusters:
+        return chunks_text
+
+    # Use MiniBatchKMeans for speed and efficiency
+    kmeans = MiniBatchKMeans(
+        n_clusters=n_clusters,
+        random_state=42,
+        batch_size=256,
+        n_init="auto",  # Suppresses a future warning
+    )
+    kmeans.fit(chunk_embeddings)
+
+    # Find the index of the chunk closest to each cluster centroid
+    # This is a fast way to get the most representative chunk for each theme
+    closest_chunk_indices, _ = pairwise_distances_argmin_min(
+        kmeans.cluster_centers_, chunk_embeddings
+    )
+
+    # Sort the indices to maintain the original document order
+    sorted_indices = sorted(closest_chunk_indices)
+
+    # Retrieve the actual text for the key chunks
+    key_chunks = [chunks_text[i] for i in sorted_indices]
+
+    return key_chunks
