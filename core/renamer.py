@@ -13,6 +13,8 @@ from datetime import datetime
 
 from models.schema import GenerateNameResponse, ExtractTextRequest
 from utils.file_parser import extract_text
+from utils.embedding import embed_text, extract_key_chunks, chunk_text
+from utils.llm import generate_ai_filename
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -71,28 +73,56 @@ def generate_new_filename(
             logger.warning(f"Could not extract content from {file_path}: {str(e)}")
             file_content = f"File type: {original_path.suffix}"
 
-        # TODO: Use local LLM for filename generation
-        # This would involve:
-        # 1. Preparing a prompt with file content and context
-        # 2. Running llama-cpp-python inference
-        # 3. Parsing the LLM response for filename suggestions
+        # AI-powered filename generation workflow
+        try:
+            # Step 1: Breaking down the file content into manageable chunks
+            chunks = chunk_text(file_content, chunk_size=400, overlap=50)
+            logger.info(f"Split content into {len(chunks)} chunks")
 
-        # Placeholder implementation with rule-based naming
-        suggested_name = _generate_placeholder_filename(
-            original_filename,
-            file_content,
-            context,
-            file_extension,
-        )
+            # Step 2: Creating embeddings for the chunks
+            if chunks:
+                chunk_embeddings = embed_text(chunks)
+                logger.info(f"Generated embeddings for {len(chunk_embeddings)} chunks")
 
-        # Sanitize the filename
-        sanitized_name = _sanitize_filename(suggested_name)
+                # Step 3: Extracting key chunks from the embeddings
+                key_chunks = extract_key_chunks(
+                    chunk_embeddings,
+                    chunks,
+                    # Don't cluster more than available chunks
+                    n_clusters=min(4, len(chunks)),
+                )
+                logger.info(f"Extracted {len(key_chunks)} key chunks")
+
+                # Step 4: Generating a new filename based on the key chunks
+                suggested_filename = generate_ai_filename(
+                    key_chunks, original_filename, context, file_extension
+                )
+                reasoning = "Generated using AI analysis of file content with embeddings and LLM"
+            else:
+                # Fallback if no content could be chunked
+                suggested_filename = generate_ai_filename(
+                    ["No content available"],
+                    original_filename,
+                    context,
+                    file_extension,
+                )
+                reasoning = "Generated using AI with minimal content (chunking failed)"
+
+        except Exception as e:
+            logger.warning(
+                f"AI filename generation failed, using basic fallback: {str(e)}"
+            )
+            # Simple fallback if everything fails
+            current_date = datetime.now().strftime("%Y%m%d")
+            base_name = "document"
+            suggested_filename = f"{base_name}_{current_date}{file_extension}"
+            reasoning = f"Generated using basic fallback (AI failed: {str(e)})"
 
         return GenerateNameResponse(
             success=True,
             original_filename=original_filename,
-            suggested_filename=sanitized_name,
-            reasoning="Generated based on file content analysis and naming conventions",
+            suggested_filename=suggested_filename,
+            reasoning=reasoning,
         )
 
     except Exception as e:
@@ -103,97 +133,6 @@ def generate_new_filename(
             suggested_filename="",
             reasoning=f"Error during generation: {str(e)}",
         )
-
-
-def _generate_placeholder_filename(
-    original_filename: str,
-    file_content: str,
-    context: Optional[str],
-    file_extension: str,
-) -> str:
-    """
-    Generate a filename using rule-based logic as a placeholder for LLM.
-
-    This is a simplified implementation that will be replaced by LLM-based
-    generation in the full version.
-
-    Args:
-        original_filename (str): Original filename
-        file_content (str): Extracted file content
-        context (Optional[str]): Additional context
-        file_extension (str): File extension to preserve
-
-    Returns:
-        str: Generated filename
-    """
-    # Extract key information from content
-    content_lower = file_content.lower()
-
-    # Try to identify document type and subject
-    if "meeting" in content_lower or "agenda" in content_lower:
-        base_name = "meeting_notes"
-    elif "report" in content_lower:
-        base_name = "report"
-    elif "invoice" in content_lower or "receipt" in content_lower:
-        base_name = "invoice"
-    elif "contract" in content_lower or "agreement" in content_lower:
-        base_name = "contract"
-    elif "presentation" in content_lower or "slides" in content_lower:
-        base_name = "presentation"
-    elif "proposal" in content_lower:
-        base_name = "proposal"
-    elif "readme" in original_filename.lower():
-        base_name = "readme"
-    elif file_extension in [".py", ".js", ".html", ".css"]:
-        base_name = "code_file"
-    elif file_extension in [".jpg", ".png", ".gif"]:
-        base_name = "image"
-    else:
-        base_name = "document"
-
-    # Add date if relevant
-    current_date = datetime.now().strftime("%Y%m%d")
-
-    # Combine with context if provided
-    if context:
-        context_clean = re.sub(r"[^\w\s-]", "", context.lower()).replace(" ", "_")
-        suggested_name = f"{base_name}_{context_clean}_{current_date}{file_extension}"
-    else:
-        suggested_name = f"{base_name}_{current_date}{file_extension}"
-
-    return suggested_name
-
-
-def _sanitize_filename(filename: str) -> str:
-    """
-    Sanitize a filename to ensure it's valid across different operating systems.
-
-    Args:
-        filename (str): Raw filename to sanitize
-
-    Returns:
-        str: Sanitized filename
-    """
-    # Remove or replace invalid characters
-    invalid_chars = r'[<>:"/\\|?*]'
-    sanitized = re.sub(invalid_chars, "_", filename)
-
-    # Remove multiple consecutive underscores
-    sanitized = re.sub(r"_+", "_", sanitized)
-
-    # Remove leading/trailing dots and spaces
-    sanitized = sanitized.strip(". ")
-
-    # Limit length to reasonable maximum
-    if len(sanitized) > 200:
-        name_part, ext = os.path.splitext(sanitized)
-        sanitized = name_part[: 200 - len(ext)] + ext
-
-    # Ensure it's not empty
-    if not sanitized:
-        sanitized = "unnamed_file"
-
-    return sanitized
 
 
 def batch_rename_files(
@@ -270,30 +209,3 @@ def validate_filename(filename: str) -> Tuple[bool, str]:
         return False, "Filename uses a reserved system name"
 
     return True, "Filename is valid"
-
-
-def get_naming_suggestions(file_type: str, content_keywords: list[str]) -> list[str]:
-    """
-    Get naming pattern suggestions based on file type and content.
-
-    Args:
-        file_type (str): File extension or type
-        content_keywords (list[str]): Keywords extracted from content
-
-    Returns:
-        list[str]: List of naming pattern suggestions
-    """
-    # TODO: Implement intelligent naming pattern suggestions
-    # This could be based on:
-    # - File type conventions
-    # - Content analysis
-    # - User's historical naming patterns
-    # - Industry standards
-
-    patterns = [
-        f"{file_type}_document_YYYYMMDD",
-        f"project_{file_type}_v1",
-        f"draft_{file_type}_notes",
-    ]
-
-    return patterns
