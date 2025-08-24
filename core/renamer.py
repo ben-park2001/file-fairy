@@ -10,7 +10,6 @@ import re
 from pathlib import Path
 from typing import Optional, Tuple
 from datetime import datetime
-from llama_cpp import Llama
 
 from models.schema import GenerateNameResponse, ExtractTextRequest
 from utils.file_parser import extract_text
