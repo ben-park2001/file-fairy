@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.endpoints import router
+from core.database import initialize_db
 
 # Configure logging
 logging.basicConfig(
@@ -25,6 +26,23 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager."""
+    # Startup
+    logger.info("Initializing File Fairy Backend...")
+    if initialize_db():
+        logger.info("Database initialized successfully")
+    else:
+        logger.error("Failed to initialize database")
+
+    yield
+
+    # Shutdown
+    logger.info("Shutting down File Fairy Backend...")
+
+
 # Create FastAPI application
 app = FastAPI(
     title="File Fairy Backend",
@@ -32,6 +50,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Configure CORS for desktop application integration
@@ -65,34 +84,6 @@ async def root():
 async def health_check():
     """Simple health check endpoint."""
     return {"status": "healthy"}
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan events."""
-
-    # Initialize services on startup
-    logger.info("File Fairy Backend starting up...")
-
-    # TODO: Initialize AI models and databases here
-    # - Load sentence-transformers model
-    # - Initialize LanceDB connection
-    # - Load llama-cpp-python model
-    # - Verify all dependencies
-
-    logger.info("File Fairy Backend started successfully")
-
-    yield
-
-    # Clean up resources on shutdown
-    logger.info("File Fairy Backend shutting down...")
-
-    # TODO: Clean up resources
-    # - Close database connections
-    # - Unload AI models
-    # - Save any pending data
-
-    logger.info("File Fairy Backend shutdown complete")
 
 
 # Main entry point
