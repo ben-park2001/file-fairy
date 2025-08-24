@@ -5,14 +5,15 @@
 
 mod error;
 mod extractors;
-mod ollama;
 mod services;
 mod types;
 
-use services::{ExtractionService, FileSystemService, OrganizationService, WatchService};
+use services::{ExtractionService, FileSystemService, RenamerService, WatchService};
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
-use types::{DirectoryItem, OrganizationResult, PathInfo, WatchedFolderInfo};
+use types::{DirectoryItem, PathInfo, WatchedFolderInfo};
+
+use crate::types::FileChunkSchema;
 
 // Global watch service instance
 static WATCH_SERVICE: OnceLock<Arc<WatchService>> = OnceLock::new();
@@ -58,44 +59,21 @@ async fn extract_file_content(file_path: &str) -> Result<String, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Check Ollama service health
-#[tauri::command]
-async fn ollama_health_check() -> Result<bool, String> {
-    let organization_service = OrganizationService::new();
-    organization_service.health_check().await
-}
-
-/// List available Ollama models
-#[tauri::command]
-async fn ollama_list_models() -> Result<Vec<String>, String> {
-    let organization_service = OrganizationService::new();
-    organization_service.list_models().await
-}
-
 /// Generate filename using Ollama
 #[tauri::command]
-async fn ollama_generate_filename(summary: &str, model: &str) -> Result<String, String> {
-    let organization_service = OrganizationService::new();
-    organization_service.generate_filename(summary, model).await
-}
-
-/// Analyze and organize a file
-#[tauri::command]
-async fn analyze_and_organize_file(
-    file_path: &str,
-    filename_model: &str,
-) -> Result<OrganizationResult, String> {
-    let organization_service = OrganizationService::new();
-    organization_service
-        .analyze_and_organize_file(file_path, filename_model)
+async fn generate_new_filename(file_path: &str) -> Result<String, String> {
+    let renamer_service = RenamerService::new();
+    renamer_service
+        .generate_new_filename(file_path)
         .await
+        .map_err(|e| e.to_string())
 }
 
 /// Rename/move a file
 #[tauri::command]
 async fn rename_file(old_path: &str, new_path: &str) -> Result<(), String> {
-    let organization_service = OrganizationService::new();
-    organization_service.rename_file(old_path, new_path).await
+    let renamer_service = RenamerService::new();
+    renamer_service.rename_file(old_path, new_path).await
 }
 
 // Watch Service Commands
@@ -139,22 +117,13 @@ async fn watch_list_folders() -> Result<Vec<WatchedFolderInfo>, String> {
     Ok(watch_service.list_watched_folders())
 }
 
-/// Update watch configuration
 #[tauri::command]
-async fn watch_update_config(recursive: bool, process_existing_files: bool) -> Result<(), String> {
+async fn search_documents(query: &str, limit: usize) -> Result<Vec<FileChunkSchema>, String> {
     let watch_service = get_watch_service();
-    let config = services::watch::WatchConfig {
-        recursive,
-        process_existing_files,
-    };
-    watch_service.update_config(config)
-}
-
-/// Get current watch configuration
-#[tauri::command]
-async fn watch_get_config() -> Result<services::watch::WatchConfig, String> {
-    let watch_service = get_watch_service();
-    watch_service.get_config()
+    watch_service
+        .search_documents(query, limit)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -163,24 +132,32 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .setup(|_app| {
+            // Initialize the watch service and database on application startup
+            tauri::async_runtime::spawn(async {
+                let watch_service = get_watch_service();
+                if let Err(e) = watch_service.initialize().await {
+                    eprintln!("Failed to initialize watch service: {}", e);
+                } else {
+                    println!("Watch service and database initialized successfully");
+                }
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_folder_name,
             get_path_info,
             folder_exists,
             read_directory_structure,
             extract_file_content,
-            ollama_health_check,
-            ollama_list_models,
-            ollama_generate_filename,
-            analyze_and_organize_file,
+            generate_new_filename,
             rename_file,
             watch_register_folder,
             watch_pause_folder,
             watch_resume_folder,
             watch_remove_folder,
             watch_list_folders,
-            watch_update_config,
-            watch_get_config
+            search_documents,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

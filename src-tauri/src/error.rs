@@ -20,11 +20,26 @@ pub enum AppError {
 
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),
+
+    #[error("Database error: {0}")]
+    Database(#[from] lancedb::Error),
+
+    #[error("Arrow error: {0}")]
+    Arrow(#[from] arrow::error::ArrowError),
+
+    #[error("Other error: {0}")]
+    Other(String),
 }
 
 impl From<AppError> for String {
     fn from(error: AppError) -> Self {
         error.to_string()
+    }
+}
+
+impl From<&str> for AppError {
+    fn from(message: &str) -> Self {
+        AppError::Other(message.to_string())
     }
 }
 
