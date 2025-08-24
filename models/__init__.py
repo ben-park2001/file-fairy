@@ -21,6 +21,8 @@ from .schema import (
     # Data models
     FileInfo,
     SearchResult,
+    # Vector DB models
+    FileChunkSchema,
 )
 
 __all__ = [
@@ -39,4 +41,6 @@ __all__ = [
     # Data models
     "FileInfo",
     "SearchResult",
+    # Vector DB models
+    "FileChunkSchema",
 ]

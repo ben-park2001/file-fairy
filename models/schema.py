@@ -3,8 +3,9 @@ Pydantic models for API request and response validation.
 Ensures type safety and provides automatic API documentation.
 """
 
-from typing import List, Optional
+from typing import Annotated, List, Optional
 from pydantic import BaseModel, Field
+from lancedb.pydantic import Vector
 
 
 # Request Models
@@ -102,9 +103,6 @@ class GenerateNameResponse(BaseModel):
     success: bool = Field(..., description="Whether the generation was successful")
     original_filename: str = Field(..., description="Original filename")
     suggested_filename: str = Field(..., description="AI-generated filename suggestion")
-    confidence_score: float = Field(
-        ..., description="Confidence score of the suggestion (0.0 to 1.0)"
-    )
     reasoning: Optional[str] = Field(
         None, description="Explanation of the naming decision"
     )
@@ -120,6 +118,7 @@ class ExtractTextRequest(BaseModel):
 class ExtractTextResponse(BaseModel):
     """Response model for text extraction."""
 
+    success: bool = Field(..., description="Whether extraction was successful")
     file_name: str = Field(..., description="Name of the file")
     file_type: str = Field(..., description="File extension/type")
     content: str = Field(..., description="Extracted text content")
@@ -134,3 +133,13 @@ class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error type")
     message: str = Field(..., description="Detailed error message")
     details: Optional[dict] = Field(None, description="Additional error details")
+
+
+# Vector DB Model
+class FileChunkSchema(BaseModel):
+    vector: Annotated[list, Vector(1024)]
+    file_path: str
+    chunk_id: int
+    text: str
+    file_name: str
+    created_at: str
