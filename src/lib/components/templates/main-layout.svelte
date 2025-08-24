@@ -1,14 +1,13 @@
 <script lang="ts">
-  import { Text } from "$lib/components/atoms";
   import MagicBar from "$lib/components/organisms/magic-bar.svelte";
   import OrganizeResults from "$lib/components/organisms/organize-results.svelte";
   import WatchFolderModal from "$lib/components/organisms/watch-folder-modal.svelte";
   import SearchResults from "$lib/components/organisms/search-results.svelte";
   import NoResults from "$lib/components/molecules/no-results.svelte";
-  import type { SearchResult } from "$lib/types";
+  import type { FileChunkSchema } from "$lib/types";
 
   interface Props {
-    searchResults?: SearchResult[];
+    searchResults?: FileChunkSchema[];
     isSearching?: boolean;
     hasSearched?: boolean;
     lastSearchQuery?: string;
