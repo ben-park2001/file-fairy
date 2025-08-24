@@ -8,7 +8,7 @@ import struct
 import unicodedata
 import zlib
 from pathlib import Path
-import fitz  # PyMuPDF - fastest PDF parser
+import fitz
 
 from models.schema import ExtractTextRequest, ExtractTextResponse
 
@@ -24,7 +24,7 @@ def extract_text(request: ExtractTextRequest) -> ExtractTextResponse:
         ExtractTextResponse: The structured extraction response
     """
     try:
-        result = _extract_text(request.file_path, request.clean)
+        result = extract_text_structured(request.file_path, request.clean)
         return ExtractTextResponse(**result)
     except FileNotFoundError:
         return ExtractTextResponse(
@@ -76,7 +76,7 @@ def get_supported_file_types() -> list[str]:
         ".pptx",
         ".ppt",  # PowerPoint presentations
         ".hwp",
-        ".hwpx",
+        ".hwpx",  # Hanword documents
     ]
 
 
@@ -126,7 +126,7 @@ def clean_content(text: str) -> str:
     return text
 
 
-def _extract_text(file_path: str, clean: bool = True) -> dict:
+def extract_text_structured(file_path: str, clean: bool = True) -> dict:
     """
     Extract text from a file and return structured data.
 
@@ -146,19 +146,19 @@ def _extract_text(file_path: str, clean: bool = True) -> dict:
     path = Path(file_path)
     file_extension = path.suffix.lower()
 
-    # Determine extraction method
+    # Determine extraction method and extract content
     if file_extension in [".txt", ".md", ".log", ".csv"]:
-        content = _extract_text(file_path)
+        content = _extract_text_file(file_path)
     elif file_extension == ".pdf":
-        content = _extract_pdf(file_path)
+        content = _extract_pdf_file(file_path)
     elif file_extension in [".docx", ".doc"]:
-        content = _extract_word(file_path)
+        content = _extract_word_file(file_path)
     elif file_extension in [".xlsx", ".xls"]:
-        content = _extract_excel(file_path)
+        content = _extract_excel_file(file_path)
     elif file_extension in [".pptx", ".ppt"]:
-        content = _extract_powerpoint(file_path)
+        content = _extract_powerpoint_file(file_path)
     elif file_extension in [".hwp", ".hwpx"]:
-        content = _extract_hwp(file_path)
+        content = _extract_hwp_file(file_path)
     else:
         raise ValueError(f"Unsupported file type: {file_extension}")
 
@@ -167,13 +167,14 @@ def _extract_text(file_path: str, clean: bool = True) -> dict:
         content = clean_content(content)
 
     return {
+        "success": True,
         "file_name": path.name,
         "file_type": file_extension,
         "content": content,
     }
 
 
-def _extract_text(file_path: str) -> str:
+def _extract_text_file(file_path: str) -> str:
     """Extract text from plain text files."""
     try:
         with open(file_path, "r", encoding="utf-8") as f:
@@ -186,7 +187,7 @@ def _extract_text(file_path: str) -> str:
             return ""
 
 
-def _extract_pdf(file_path: str) -> str:
+def _extract_pdf_file(file_path: str) -> str:
     """Extract text from PDF files."""
     try:
         doc = fitz.open(file_path)
@@ -200,7 +201,7 @@ def _extract_pdf(file_path: str) -> str:
         return ""
 
 
-def _extract_word(file_path: str) -> str:
+def _extract_word_file(file_path: str) -> str:
     """Extract text from Word documents."""
     try:
         import docx2txt
@@ -216,7 +217,7 @@ def _extract_word(file_path: str) -> str:
             return ""
 
 
-def _extract_excel(file_path: str) -> str:
+def _extract_excel_file(file_path: str) -> str:
     """Extract text from Excel files."""
     try:
         file_extension = Path(file_path).suffix.lower()
@@ -253,7 +254,7 @@ def _extract_excel(file_path: str) -> str:
         return ""
 
 
-def _extract_powerpoint(file_path: str) -> str:
+def _extract_powerpoint_file(file_path: str) -> str:
     """Extract text from PowerPoint files."""
     try:
         from pptx import Presentation
@@ -278,7 +279,7 @@ def _extract_powerpoint(file_path: str) -> str:
         return ""
 
 
-def _extract_hwp(file_path: str) -> str:
+def _extract_hwp_file(file_path: str) -> str:
     """Main HWP extraction logic."""
     try:
         import olefile
