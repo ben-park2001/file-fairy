@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.endpoints import router
 from core.database import initialize_db
 from utils.embedding import initialize_embedding_model
+from utils.llm import initialize_llm_model
 
 # Configure logging
 logging.basicConfig(
@@ -43,6 +44,11 @@ async def lifespan(app: FastAPI):
         logger.error("Failed to initialize embedding model")
     else:
         logger.info("Embedding model initialized successfully")
+
+    if not initialize_llm_model():
+        logger.error("Failed to initialize LLM model")
+    else:
+        logger.info("LLM model initialized successfully")
 
     yield
 
