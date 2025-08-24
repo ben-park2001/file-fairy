@@ -1,5 +1,6 @@
-use crate::services::{DocumentEmbedding, ExtractionService, VectorDbService};
-use crate::types::{WatchState, WatchedFolder, WatchedFolderInfo};
+use crate::error::AppResult;
+use crate::services::{DatabaseService, ExtractionService};
+use crate::types::{FileChunkSchema, WatchState, WatchedFolder, WatchedFolderInfo};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -29,7 +30,7 @@ pub struct WatchService {
     watched: Arc<Mutex<HashMap<PathBuf, WatchedFolder>>>,
     watchers: Arc<Mutex<HashMap<PathBuf, JoinHandle<()>>>>,
     config: Arc<Mutex<WatchConfig>>,
-    vector_db: Arc<VectorDbService>,
+    database: Arc<DatabaseService>,
 }
 
 impl WatchService {
@@ -40,46 +41,27 @@ impl WatchService {
 
     /// Create a new watch service with custom configuration
     pub fn with_config(config: WatchConfig) -> Self {
-        let vector_db = Arc::new(VectorDbService::default());
+        let database = Arc::new(DatabaseService::default());
         Self {
             watched: Arc::new(Mutex::new(HashMap::new())),
             watchers: Arc::new(Mutex::new(HashMap::new())),
             config: Arc::new(Mutex::new(config)),
-            vector_db,
+            database,
         }
     }
 
-    /// Create a new watch service with custom vector database path
-    pub fn with_vector_db(config: WatchConfig, db_path: PathBuf) -> Self {
-        let vector_db = Arc::new(VectorDbService::new(db_path));
-        Self {
-            watched: Arc::new(Mutex::new(HashMap::new())),
-            watchers: Arc::new(Mutex::new(HashMap::new())),
-            config: Arc::new(Mutex::new(config)),
-            vector_db,
-        }
-    }
-
-    /// Initialize the watch service and vector database
+    /// Initialize the watch service and database
     pub async fn initialize(&self) -> Result<(), String> {
-        self.vector_db.initialize().await.map_err(|e| e.to_string())
-    }
-
-    /// Update the watch configuration
-    pub fn update_config(&self, config: WatchConfig) -> Result<(), String> {
-        let mut current_config = self.config.lock().map_err(|_| "Failed to lock config")?;
-        *current_config = config;
-        Ok(())
-    }
-
-    /// Get current watch configuration
-    pub fn get_config(&self) -> Result<WatchConfig, String> {
-        let config = self.config.lock().map_err(|_| "Failed to lock config")?;
-        Ok(config.clone())
+        self.database.initialize().await.map_err(|e| e.to_string())
     }
 
     /// Register a folder to watch for embedding-based semantic search
     pub async fn register_folder(&self, folder: &Path) -> Result<(), String> {
+        // Ensure database is initialized before registering
+        if let Err(e) = self.database.initialize().await {
+            return Err(format!("Failed to initialize database: {}", e));
+        }
+
         let folder = folder
             .canonicalize()
             .map_err(|e| format!("Failed to canonicalize path '{}': {}", folder.display(), e))?;
@@ -164,7 +146,7 @@ impl WatchService {
                 let watch_service = self.clone();
 
                 let task = tokio::spawn(async move {
-                    watch_service.create_embedding_for_file(path).await;
+                    watch_service.upsert_file_to_database(path).await;
                 });
                 tasks.push(task);
             }
@@ -397,15 +379,7 @@ impl WatchService {
                                 && Self::is_supported_file_static(&path)
                             {
                                 println!("Creating embedding for new file: {}", path.display());
-                                watch_service.create_embedding_for_file(path).await;
-                            }
-                        }
-                    }
-                    EventKind::Remove(_) => {
-                        for path in event.paths {
-                            if Self::is_supported_file_static(&path) {
-                                println!("Removing embedding for deleted file: {}", path.display());
-                                watch_service.remove_embedding_for_file(path).await;
+                                watch_service.upsert_file_to_database(path).await;
                             }
                         }
                     }
@@ -419,7 +393,15 @@ impl WatchService {
                                     "Updating embedding for modified file: {}",
                                     path.display()
                                 );
-                                watch_service.update_embedding_for_file(path).await;
+                                watch_service.upsert_file_to_database(path).await;
+                            }
+                        }
+                    }
+                    EventKind::Remove(_) => {
+                        for path in event.paths {
+                            if Self::is_supported_file_static(&path) {
+                                println!("Removing embedding for deleted file: {}", path.display());
+                                watch_service.remove_file_from_database(path).await;
                             }
                         }
                     }
@@ -453,56 +435,25 @@ impl WatchService {
     }
 
     /// Create embedding for a new file
-    async fn create_embedding_for_file(&self, path: PathBuf) {
+    async fn upsert_file_to_database(&self, path: PathBuf) {
         println!("Creating embedding for file: {}", path.display());
 
-        let vector_db = Arc::clone(&self.vector_db);
+        let database = Arc::clone(&self.database);
         task::spawn(async move {
             // Small delay to ensure file is fully written
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
             match ExtractionService::extract_file_content(&path).await {
                 Ok(content) => {
-                    println!(
-                        "✅ Content extracted for embedding (length: {}): {}",
-                        content.len(),
-                        path.display()
-                    );
-
-                    let file_name = path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("unknown")
-                        .to_string();
-
-                    let directory = path
-                        .parent()
-                        .map(|p| p.to_string_lossy().to_string())
-                        .unwrap_or_default();
-
-                    let file_extension = path
-                        .extension()
-                        .and_then(|ext| ext.to_str())
-                        .unwrap_or("unknown")
-                        .to_string();
-
-                    // For now, use placeholder embedding - in real implementation,
-                    // this would be generated by an embedding model
-                    let placeholder_embedding = vec![0.5; 384]; // Typical embedding dimension
-
-                    let embedding = DocumentEmbedding::new(
-                        path.to_string_lossy().to_string(),
-                        file_name,
-                        directory,
-                        file_extension,
-                        content.clone(),
-                        placeholder_embedding,
-                    );
-
-                    if let Err(e) = vector_db.upsert_embedding(embedding).await {
-                        eprintln!("❌ Failed to store embedding for {}: {}", path.display(), e);
+                    let file_path = path.to_string_lossy().to_string();
+                    if let Err(e) = database.upsert_file(&file_path, &content).await {
+                        eprintln!(
+                            "❌ Failed to create embedding for {}: {}",
+                            path.display(),
+                            e
+                        );
                     } else {
-                        println!("✅ Embedding stored for: {}", path.display());
+                        println!("✅ Embedding created for: {}", path.display());
                     }
                 }
                 Err(e) => {
@@ -516,83 +467,15 @@ impl WatchService {
         });
     }
 
-    /// Update embedding for a modified file
-    async fn update_embedding_for_file(&self, path: PathBuf) {
-        println!("Updating embedding for modified file: {}", path.display());
-
-        let vector_db = Arc::clone(&self.vector_db);
-        task::spawn(async move {
-            // Small delay to ensure file modifications are complete
-            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-
-            match ExtractionService::extract_file_content(&path).await {
-                Ok(content) => {
-                    println!(
-                        "✅ Content extracted for embedding update (length: {}): {}",
-                        content.len(),
-                        path.display()
-                    );
-
-                    let file_name = path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("unknown")
-                        .to_string();
-
-                    let directory = path
-                        .parent()
-                        .map(|p| p.to_string_lossy().to_string())
-                        .unwrap_or_default();
-
-                    let file_extension = path
-                        .extension()
-                        .and_then(|ext| ext.to_str())
-                        .unwrap_or("unknown")
-                        .to_string();
-
-                    // For now, use placeholder embedding - in real implementation,
-                    // this would be generated by an embedding model
-                    let placeholder_embedding = vec![0.5; 384]; // Typical embedding dimension
-
-                    let embedding = DocumentEmbedding::new(
-                        path.to_string_lossy().to_string(),
-                        file_name,
-                        directory,
-                        file_extension,
-                        content.clone(),
-                        placeholder_embedding,
-                    );
-
-                    if let Err(e) = vector_db.upsert_embedding(embedding).await {
-                        eprintln!(
-                            "❌ Failed to update embedding for {}: {}",
-                            path.display(),
-                            e
-                        );
-                    } else {
-                        println!("✅ Embedding updated for: {}", path.display());
-                    }
-                }
-                Err(e) => {
-                    eprintln!(
-                        "❌ Failed to extract content for embedding update from {}: {}",
-                        path.display(),
-                        e
-                    );
-                }
-            }
-        });
-    }
-
     /// Remove embedding for a deleted file
-    async fn remove_embedding_for_file(&self, path: PathBuf) {
+    async fn remove_file_from_database(&self, path: PathBuf) {
         println!("Removing embedding for deleted file: {}", path.display());
 
-        let vector_db = Arc::clone(&self.vector_db);
+        let database = Arc::clone(&self.database);
         task::spawn(async move {
             let file_path = path.to_string_lossy().to_string();
 
-            if let Err(e) = vector_db.delete_embedding(&file_path).await {
+            if let Err(e) = database.remove_file(&file_path).await {
                 eprintln!(
                     "❌ Failed to remove embedding for {}: {}",
                     path.display(),
@@ -604,55 +487,24 @@ impl WatchService {
         });
     }
 
-    /// Clean up old embeddings for files that no longer exist
-    pub async fn cleanup_stale_embeddings(&self) -> Result<u64, String> {
-        self.vector_db
-            .cleanup_stale_embeddings()
-            .await
-            .map_err(|e| e.to_string())
-    }
-
-    /// Get vector database statistics
-    pub async fn get_embedding_stats(&self) -> Result<HashMap<String, u64>, String> {
-        self.vector_db.get_stats().await.map_err(|e| e.to_string())
-    }
-
-    /// Search for similar documents based on content
-    pub async fn search_similar_documents(
+    /// Search for documents based on content
+    pub async fn search_documents(
         &self,
-        _query_text: &str,
+        query: &str,
         limit: usize,
-    ) -> Result<Vec<DocumentEmbedding>, String> {
-        // For now, use a placeholder embedding - in real implementation,
-        // this would be generated by the same embedding model used for documents
-        let query_embedding = vec![0.5; 384]; // Typical embedding dimension
+    ) -> AppResult<Vec<FileChunkSchema>> {
+        println!("Searching documents for query: {}", query);
+        // Ensure database is initialized before search
+        if let Err(e) = self.database.initialize().await {
+            return Err(crate::error::AppError::Other(format!(
+                "Failed to initialize database: {}",
+                e
+            )));
+        }
 
-        self.vector_db
-            .search_similar(query_embedding, limit)
-            .await
-            .map_err(|e| e.to_string())
-    }
-
-    /// Get all embeddings for documents in a specific directory
-    pub async fn get_documents_in_directory(
-        &self,
-        directory_path: &str,
-    ) -> Result<Vec<DocumentEmbedding>, String> {
-        self.vector_db
-            .get_embeddings_by_directory(directory_path)
-            .await
-            .map_err(|e| e.to_string())
-    }
-
-    /// Get a specific document embedding by file path
-    pub async fn get_document_embedding(
-        &self,
-        file_path: &str,
-    ) -> Result<Option<DocumentEmbedding>, String> {
-        self.vector_db
-            .get_embedding(file_path)
-            .await
-            .map_err(|e| e.to_string())
+        let results = self.database.search_files(query, limit).await?;
+        println!("Found {} documents for query: {}", results.len(), query);
+        Ok(results)
     }
 }
 
