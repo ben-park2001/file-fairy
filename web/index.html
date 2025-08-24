@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileFairy - 파일 관리 도우미</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <div class="header-content">
+            <h1 class="logo">📁 FileFairy</h1>
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="watch" title="Ctrl+1">감시</button>
+                <button class="tab-btn" data-tab="search" title="Ctrl+2">검색</button>
+                <button class="tab-btn" data-tab="rename" title="Ctrl+3">파일명 변경</button>
+                <button class="help-btn" onclick="gui.showHelp()" title="도움말">❓</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="main-content">
+        <!-- 감시 탭 -->
+        <div id="watch-tab" class="tab-content active">
+            <div class="tab-header">
+                <h2>📂 폴더 감시</h2>
+                <p>폴더를 드래그하여 파일 변경사항을 실시간으로 감시하세요</p>
+            </div>
+            
+            <div class="drop-zone" id="watch-drop-zone">
+                <div class="drop-zone-content">
+                    <div class="drop-icon">📁</div>
+                    <div class="drop-text">
+                        <strong>폴더를 여기에 드래그하세요</strong>
+                        <p>감시할 폴더를 끌어다 놓으면 자동으로 파일 변경사항을 추적합니다</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h3>📋 감시 중인 폴더</h3>
+                <div id="watch-folders-list" class="folder-list">
+                    <div class="empty-state">아직 감시 중인 폴더가 없습니다</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 검색 탭 -->
+        <div id="search-tab" class="tab-content">
+            <div class="tab-header">
+                <h2>🔍 파일 검색</h2>
+                <p>내용 기반으로 파일을 검색하세요</p>
+            </div>
+
+            <div class="search-section">
+                <div class="search-input-group">
+                    <input type="text" id="search-input" placeholder="찾고 싶은 내용을 입력하세요..." class="search-input">
+                    <button id="search-btn" class="search-btn">검색</button>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h3>📄 검색 결과</h3>
+                <div id="search-results" class="search-results">
+                    <div class="empty-state">검색어를 입력하고 검색 버튼을 눌러주세요</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 파일명 변경 탭 -->
+        <div id="rename-tab" class="tab-content">
+            <div class="tab-header">
+                <h2>✏️ 파일명 변경</h2>
+                <p>AI가 내용을 분석하여 적절한 파일명을 추천해드립니다</p>
+            </div>
+
+            <div class="drop-zone" id="rename-drop-zone">
+                <div class="drop-zone-content">
+                    <div class="drop-icon">📎</div>
+                    <div class="drop-text">
+                        <strong>파일이나 폴더를 여기에 드래그하세요</strong>
+                        <p>AI가 내용을 분석하여 더 나은 파일명을 제안해드립니다</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h3>💡 파일명 추천 결과</h3>
+                <div id="rename-results" class="rename-results">
+                    <div class="empty-state">파일을 드래그하여 파일명 추천을 받아보세요</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 알림 토스트 -->
+    <div id="toast" class="toast"></div>
+
+    <!-- 로딩 오버레이 -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">처리 중...</div>
+    </div>
+
+    <!-- 도움말 모달 -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📚 FileFairy 사용법</h2>
+                <button class="close-btn" onclick="gui.hideHelp()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="help-section">
+                    <h3>🎯 기본 기능</h3>
+                    <ul>
+                        <li><strong>감시</strong>: 폴더를 드래그하여 파일 변경사항 추적</li>
+                        <li><strong>검색</strong>: 파일 내용 기반 검색</li>
+                        <li><strong>파일명 변경</strong>: AI 기반 파일명 추천</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <h3>⌨️ 단축키</h3>
+                    <ul>
+                        <li><kbd>Ctrl + 1/2/3</kbd>: 탭 전환</li>
+                        <li><kbd>Ctrl + F</kbd>: 검색창 포커스</li>
+                        <li><kbd>Enter</kbd>: 검색 실행</li>
+                        <li><kbd>ESC</kbd>: 로딩 취소</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <h3>📁 지원 파일 형식</h3>
+                    <p>TXT, PDF, DOCX, XLSX, PPTX, HWP, MD, CSV, LOG</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
