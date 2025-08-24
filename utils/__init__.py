@@ -12,7 +12,9 @@ from .embedding import (
     embed_text,
     chunk_text,
     calculate_text_relevance,
+    extract_key_chunks,
 )
+from .llm import initialize_llm_model, generate_ai_filename
 
 __all__ = [
     # File parsing utilities
@@ -25,4 +27,8 @@ __all__ = [
     "embed_text",
     "chunk_text",
     "calculate_text_relevance",
+    "extract_key_chunks",
+    # LLM utilities
+    "initialize_llm_model",
+    "generate_ai_filename",
 ]
