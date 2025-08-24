@@ -4,7 +4,7 @@
 //! organization results, and other core application entities.
 
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Represents the state of a watched folder
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -16,7 +16,7 @@ pub enum WatchState {
 /// Information about a watched folder
 #[derive(Debug, Clone)]
 pub struct WatchedFolder {
-    pub path: std::path::PathBuf,
+    pub path: PathBuf,
     pub state: WatchState,
 }
 
@@ -60,23 +60,6 @@ impl DirectoryItem {
     }
 }
 
-/// Result of file analysis and organization
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct OrganizationResult {
-    pub summary: String,
-    pub new_filename: String,
-}
-
-impl OrganizationResult {
-    /// Create a new organization result
-    pub fn new(summary: String, new_filename: String) -> Self {
-        Self {
-            summary,
-            new_filename,
-        }
-    }
-}
-
 /// Path information
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PathInfo {
@@ -107,5 +90,46 @@ impl PathInfo {
         let is_directory = path_obj.is_dir();
 
         Ok(Self::new(name, is_directory))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileChunkSchema {
+    /// Unique identifier for the chunk
+    pub chunk_id: u64,
+    /// Timestamp when the chunk was created
+    pub created_at: u64,
+    /// Path to the original file
+    pub file_path: String,
+    /// Name of the original file
+    pub file_name: String,
+    /// Text content of the chunk
+    pub text: String,
+    /// Vector representation of the file chunk
+    pub vector: Vec<f32>,
+}
+
+impl FileChunkSchema {
+    /// Create a new file chunk schema
+    pub fn new(chunk_id: u64, file_path: String, text: String, vector: Vec<f32>) -> Self {
+        let created_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let file_name = Path::new(&file_path)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        Self {
+            chunk_id,
+            created_at,
+            file_path,
+            file_name,
+            text,
+            vector,
+        }
     }
 }
