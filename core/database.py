@@ -7,9 +7,15 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Any
 import lancedb
-from sentence_transformers import SentenceTransformer
 
 from models.schema import SearchResult
+from utils.embedding import (
+    initialize_embedding_model,
+    embed_text,
+    chunk_text,
+    calculate_text_relevance,
+    VECTOR_DIM,
+)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -17,24 +23,23 @@ logger = logging.getLogger(__name__)
 # Configuration
 DB_PATH = "./data/lancedb"
 MODEL_NAME = "Qwen3-0.6B-Embedding"
-CHUNK_SIZE = 400
-OVERLAP = 50
-VECTOR_DIM = 1024
 
 # Global instances
 _db = None
-_model = None
 _table = None
 
 
 def initialize_db(db_path: str = DB_PATH, model_name: str = MODEL_NAME) -> bool:
     """Initialize database and embedding model."""
-    global _db, _model, _table
+    global _db, _table
 
     try:
         os.makedirs(db_path, exist_ok=True)
         _db = lancedb.connect(db_path)
-        _model = SentenceTransformer(model_name)
+
+        # Initialize embedding model using utility function
+        if not initialize_embedding_model(model_name):
+            return False
 
         # Create table if it doesn't exist
         if "files" not in _db.table_names():
@@ -61,59 +66,9 @@ def initialize_db(db_path: str = DB_PATH, model_name: str = MODEL_NAME) -> bool:
         return False
 
 
-def _chunk_text(text: str) -> List[str]:
-    """Split text into chunks."""
-    if not text:
-        return []
-
-    chunks = []
-    start = 0
-    text_length = len(text)
-
-    while start < text_length:
-        end = min(start + CHUNK_SIZE, text_length)
-        chunk = text[start:end]
-        chunks.append(chunk)
-        start += CHUNK_SIZE - OVERLAP  # Move start forward with overlap
-
-    return chunks
-
-
-def _calculate_text_relevance(text: str, filename: str, query: str) -> float:
-    """Calculate text relevance score for a document."""
-    text_lower = text.lower()
-    filename_lower = filename.lower()
-    query_lower = query.lower()
-
-    # Split query into tokens for better matching
-    query_tokens = query_lower.split()
-
-    score = 0.0
-
-    # Exact phrase matching (highest weight)
-    if query_lower in text_lower:
-        score += 0.5
-    if query_lower in filename_lower:
-        score += 0.3
-
-    # Individual token matching
-    for token in query_tokens:
-        if len(token) > 2:  # Skip very short tokens
-            # Text content matches
-            text_matches = text_lower.count(token)
-            score += min(0.1, text_matches * 0.02)
-
-            # Filename matches (weighted higher)
-            filename_matches = filename_lower.count(token)
-            score += min(0.2, filename_matches * 0.1)
-
-    # Normalize score to 0-1 range
-    return min(1.0, score)
-
-
 def add_file(file_path: str, content: str, file_name: str) -> bool:
     """Add file to index."""
-    if not _table or not _model:
+    if not _table:
         logger.error("Database not initialized")
         return False
 
@@ -121,13 +76,13 @@ def add_file(file_path: str, content: str, file_name: str) -> bool:
         # Remove existing file
         remove_file(file_path)
 
-        # Chunk content
-        chunks = _chunk_text(content)
+        # Chunk content using utility function
+        chunks = chunk_text(content)
         if not chunks:
             return False
 
-        # Generate embeddings
-        embeddings = _model.encode(chunks)
+        # Generate embeddings using utility function
+        embeddings = embed_text(chunks)
 
         # Prepare data
         data = []
@@ -136,7 +91,7 @@ def add_file(file_path: str, content: str, file_name: str) -> bool:
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
             data.append(
                 {
-                    "vector": embedding.tolist(),
+                    "vector": embedding,
                     "file_path": file_path,
                     "chunk_id": i,
                     "text": chunk,
@@ -158,17 +113,17 @@ def search_files(
     query: str, limit: int = 10, threshold: float = 0.7
 ) -> List[SearchResult]:
     """Search files using LanceDB's native hybrid search (vector + full-text)."""
-    if not _table or not _model:
+    if not _table:
         return []
 
     try:
-        # Generate query embedding for vector search
-        query_embedding = _model.encode([query])[0]
+        # Generate query embedding using utility function
+        query_embedding = embed_text(query)
 
         # Use LanceDB's native hybrid search
         results_df = (
             _table.search(query_type="hybrid")
-            .vector(query_embedding.tolist())
+            .vector(query_embedding)
             .text(query)
             .limit(limit * 2)  # Get more results for filtering
             .to_pandas()
@@ -187,8 +142,8 @@ def search_files(
                 elif hasattr(row, "_score"):
                     similarity_score = float(row["_score"])
                 else:
-                    # Fallback: calculate our own hybrid score
-                    similarity_score = _calculate_text_relevance(
+                    # Fallback: calculate our own hybrid score using utility function
+                    similarity_score = calculate_text_relevance(
                         str(row["text"]), str(row["file_name"]), query
                     )
 
