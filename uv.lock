@@ -246,7 +246,7 @@ requires-dist = [
     { name = "docx2txt", specifier = ">=0.9" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.116.1" },
     { name = "lancedb", specifier = ">=0.24.3" },
-    { name = "llama-cpp-python", specifier = ">=0.3.16" },
+    { name = "llama-cpp-python", specifier = "==0.3.12" },
     { name = "olefile", specifier = ">=0.47" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pydantic", specifier = ">=2.0.0" },
@@ -425,7 +425,7 @@ wheels = [
 
 [[package]]
 name = "llama-cpp-python"
-version = "0.3.16"
+version = "0.3.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "diskcache" },
@@ -433,7 +433,7 @@ dependencies = [
     { name = "numpy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e4/b4/c8cd17629ced0b9644a71d399a91145aedef109c0333443bef015e45b704/llama_cpp_python-0.3.16.tar.gz", hash = "sha256:34ed0f9bd9431af045bb63d9324ae620ad0536653740e9bb163a2e1fcb973be6", size = 50688636, upload-time = "2025-08-15T04:58:29.212Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/50/4e/ffbdca966c91607c4490eeff649aeff0b042a203954aa649a0687cf2d8d1/llama_cpp_python-0.3.12.tar.gz", hash = "sha256:0c977101a46ce6fa363e63a0b33413f29deab9772be24a6c551458fc386f4725", size = 49766307, upload-time = "2025-07-06T05:02:48.617Z" }
 
 [[package]]
 name = "lxml"

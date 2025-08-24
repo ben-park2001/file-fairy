@@ -16,7 +16,7 @@ dependencies = [
     "xlrd>=2.0.2",
     "python-pptx>=1.0.2",
     "olefile>=0.47",
-    "llama-cpp-python>=0.3.16",
+    "llama-cpp-python==0.3.12",
     "lancedb>=0.24.3",
     "sentence-transformers>=5.1.0",
 ]
