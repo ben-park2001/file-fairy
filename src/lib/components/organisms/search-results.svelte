@@ -4,13 +4,13 @@
   import Icon from "$lib/components/atoms/icon.svelte";
   import Text from "$lib/components/atoms/text.svelte";
   import SearchResultItem from "$lib/components/molecules/search-result-item.svelte";
-  import type { SearchResult } from "$lib/types";
+  import type { FileChunkSchema } from "$lib/types";
 
   interface Props {
-    results: SearchResult[];
+    results: FileChunkSchema[];
     onClear: () => void;
-    onOpenFile?: (result: SearchResult) => void;
-    onShowInFinder?: (result: SearchResult) => void;
+    onOpenFile?: (result: FileChunkSchema) => void;
+    onShowInFinder?: (result: FileChunkSchema) => void;
     class?: string;
   }
 
@@ -22,21 +22,21 @@
     class: className,
   }: Props = $props();
 
-  const handleOpenFile = (result: SearchResult) => {
+  const handleOpenFile = (result: FileChunkSchema) => {
     if (onOpenFile) {
       onOpenFile(result);
     } else {
-      // Default behavior
-      console.log("Opening file:", result.path + "/" + result.filename);
+      // Default behavior - open the file
+      console.log("Opening file:", result.file_path);
     }
   };
 
-  const handleShowInFinder = (result: SearchResult) => {
+  const handleShowInFinder = (result: FileChunkSchema) => {
     if (onShowInFinder) {
       onShowInFinder(result);
     } else {
-      // Default behavior
-      console.log("Showing in finder:", result.path);
+      // Default behavior - show in finder
+      console.log("Showing in finder:", result.file_path);
     }
   };
 </script>

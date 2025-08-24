@@ -9,12 +9,10 @@
   import { Button } from "$lib/components/ui/button";
   import { Text, Icon } from "$lib/components/atoms";
   import WatchedFolderItem from "$lib/components/molecules/watched-folder-item.svelte";
-  import {
-    watchedFolders,
-    watchedFoldersActions,
-    type WatchedFolder,
-  } from "$lib/stores/watchedFolders";
+  import { watchedFolders, WatchServiceStore } from "$lib/services/watch-store";
+  import type { WatchedFolderInfo } from "$lib/types";
   import { onMount } from "svelte";
+  import { open } from "@tauri-apps/plugin-dialog";
 
   interface Props {
     isOpen: boolean;
@@ -23,7 +21,7 @@
 
   const { isOpen, onClose }: Props = $props();
 
-  let folders = $state<WatchedFolder[]>([]);
+  let folders = $state<WatchedFolderInfo[]>([]);
   let isAddingFolder = $state(false);
   let error = $state<string | null>(null);
 
@@ -36,12 +34,11 @@
   });
 
   onMount(async () => {
-    // Initialize the store and load data from backend
+    // Load watched folders from backend
     try {
-      await watchedFoldersActions.initialize();
-      await watchedFoldersActions.validateFolders();
+      await WatchServiceStore.refreshWatchedFolders();
     } catch (err) {
-      console.error("Failed to initialize watch folders:", err);
+      console.error("Failed to load watched folders:", err);
       error = "Failed to load watched folders";
     }
   });
@@ -49,7 +46,11 @@
   const toggleFolder = async (folderPath: string, currentState: boolean) => {
     try {
       error = null;
-      await watchedFoldersActions.toggleFolder(folderPath, currentState);
+      if (currentState) {
+        await WatchServiceStore.pauseFolder(folderPath);
+      } else {
+        await WatchServiceStore.resumeFolder(folderPath);
+      }
     } catch (err) {
       console.error("Failed to toggle folder:", err);
       error = err instanceof Error ? err.message : "Failed to toggle folder";
@@ -59,7 +60,7 @@
   const removeFolder = async (folderPath: string) => {
     try {
       error = null;
-      await watchedFoldersActions.removeFolder(folderPath);
+      await WatchServiceStore.removeFolder(folderPath);
     } catch (err) {
       console.error("Failed to remove folder:", err);
       error = err instanceof Error ? err.message : "Failed to remove folder";
@@ -70,9 +71,16 @@
     isAddingFolder = true;
     error = null;
     try {
-      const result = await watchedFoldersActions.addFolder();
-      if (result) {
-        console.log("Added folder:", result);
+      // Open folder selection dialog
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Select folder to watch",
+      });
+
+      if (selected) {
+        await WatchServiceStore.registerFolder(selected as string);
+        console.log("Added folder:", selected);
       }
     } catch (err) {
       console.error("Failed to add folder:", err);
