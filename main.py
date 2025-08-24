@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.endpoints import router
 from core.database import initialize_db
+from utils.embedding import initialize_embedding_model
 
 # Configure logging
 logging.basicConfig(
@@ -32,10 +33,16 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     logger.info("Initializing File Fairy Backend...")
+
     if initialize_db():
         logger.info("Database initialized successfully")
     else:
         logger.error("Failed to initialize database")
+
+    if not initialize_embedding_model():
+        logger.error("Failed to initialize embedding model")
+    else:
+        logger.info("Embedding model initialized successfully")
 
     yield
 
