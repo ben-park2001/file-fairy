@@ -4,10 +4,10 @@
   import { Switch } from "$lib/components/ui/switch";
   import Icon from "$lib/components/atoms/icon.svelte";
   import Text from "$lib/components/atoms/text.svelte";
-  import type { WatchedFolder } from "$lib/stores/watchedFolders";
+  import type { WatchedFolderInfo } from "$lib/types";
 
   interface Props {
-    folder: WatchedFolder;
+    folder: WatchedFolderInfo;
     onToggle: (folderPath: string, currentState: boolean) => Promise<void>;
     onRemove: (folderPath: string) => Promise<void>;
   }
