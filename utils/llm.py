@@ -1,38 +1,14 @@
 import os
 import logging
 import re
-from typing import Optional
 from datetime import datetime
-from llama_cpp import Llama
+import ollama
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 # Configuration
-LLM_PATH = "./data/Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
-
-# Global llm model instance
-_llm_model: Optional[Llama] = None
-
-
-def initialize_llm_model(model_path: str = LLM_PATH) -> bool:
-    """Initialize the llm model"""
-    global _llm_model
-    try:
-        _llm_model = Llama(
-            model_path=model_path,
-            verbose=False,
-        )
-        logger.info(f"LLM model initialized: {model_path}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to initialize LLM model: {str(e)}")
-        return False
-
-
-def get_llm_model() -> Optional[Llama]:
-    """Get the global LLM model instance"""
-    return _llm_model
+LLM = "qwen3:4b-instruct-2507-q4_K_M"
 
 
 def generate_ai_filename(
@@ -77,18 +53,25 @@ Original filename: {original_filename}
 Generate filename (without extension):"""
 
         # Generate response using the LLM
-        response = _llm_model.create_chat_completion(
+        response = ollama.chat(
+            model=LLM,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=50,
-            temperature=0.3,  # Lower temperature for more consistent results
-            stop=["\n", ".", "?", "!"],  # Stop at sentence endings
+            stream=False,
+            options={
+                "max_tokens": 50,
+                "temperature": 0.3,
+                "top_k": 40,
+                "top_p": 0.95,
+                "repeat_penalty": 1.1,
+                "stop": ["\n", "."],
+            },
         )
 
         # Extract the generated filename
-        generated_name = response["choices"][0]["message"]["content"].strip()
+        generated_name = response.message.content.strip()
 
         # Clean and validate the generated name
         suggested_name = _sanitize_filename(generated_name)

@@ -1,6 +1,6 @@
 import logging
-from typing import List, Optional
-from llama_cpp import Llama
+from typing import List
+import ollama
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import pairwise_distances_argmin_min
 
@@ -8,35 +8,10 @@ from sklearn.metrics import pairwise_distances_argmin_min
 logger = logging.getLogger(__name__)
 
 # Configuration
-MODEL_PATH = "./data/Qwen3-0.6B-Embedding-Q8_0.gguf"
+EMBEDDING_MODEL = "dengcao/Qwen3-Embedding-0.6B:Q8_0"
 CHUNK_SIZE = 400
 OVERLAP = 50
 VECTOR_DIM = 1024
-
-# Global embedding model instance
-_embedding_model: Optional[Llama] = None
-
-
-def initialize_embedding_model(model_path: str = MODEL_PATH):
-    """Initialize the GGUF model if available."""
-    global _embedding_model
-    try:
-        _embedding_model = Llama(
-            model_path=model_path,
-            embedding=True,
-            pooling_type=3,
-            verbose=False,
-        )
-        logger.info(f"GGUF model initialized: {model_path}")
-        return True
-    except Exception as e:
-        logger.warning(f"GGUF model not available: {e}")
-        return False
-
-
-def get_embedding_model() -> Optional[Llama]:
-    """Get the global embedding model instance."""
-    return _embedding_model
 
 
 def embed_text(text: str | List[str]) -> List[List[float]]:
@@ -49,15 +24,11 @@ def embed_text(text: str | List[str]) -> List[List[float]]:
     Returns:
         List of embedding vectors
     """
-    if not _embedding_model:
-        raise RuntimeError(
-            "Embedding model not initialized. Call initialize_embedding_model() first."
-        )
-
     try:
-        return _embedding_model.embed(text)
+        response = ollama.embed(model=EMBEDDING_MODEL, text=text)
+        return response.embeddings
     except Exception as e:
-        logger.error(f"Failed to encode text: {e}")
+        logger.error(f"Failed to embed text: {e}")
         raise
 
 
