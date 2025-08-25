@@ -13,8 +13,8 @@ from datetime import datetime
 
 from models.schema import GenerateNameResponse, ExtractTextRequest
 from utils.file_parser import extract_text
-from utils.embedding import extract_key_chunks, chunk_text
-from utils.ollama import get_filename, get_embedding
+from utils.embedding import embed_text, extract_key_chunks, chunk_text
+from utils.llm import generate_ai_filename
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ def generate_new_filename(
 
             # Step 2: Creating embeddings for the chunks
             if chunks:
-                chunk_embeddings = get_embedding(chunks)
+                chunk_embeddings = embed_text(chunks)
                 logger.info(f"Generated embeddings for {len(chunk_embeddings)} chunks")
 
                 # Step 3: Extracting key chunks from the embeddings
@@ -94,13 +94,13 @@ def generate_new_filename(
                 logger.info(f"Extracted {len(key_chunks)} key chunks")
 
                 # Step 4: Generating a new filename based on the key chunks
-                suggested_filename = get_filename(
+                suggested_filename = generate_ai_filename(
                     key_chunks, original_filename, context, file_extension
                 )
                 reasoning = "Generated using AI analysis of file content with embeddings and LLM"
             else:
                 # Fallback if no content could be chunked
-                suggested_filename = get_filename(
+                suggested_filename = generate_ai_filename(
                     ["No content available"],
                     original_filename,
                     context,

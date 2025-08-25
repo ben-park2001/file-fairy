@@ -8,14 +8,14 @@ from datetime import datetime
 from typing import List, Dict, Any
 import lancedb
 
-
 from models.schema import SearchResult
 from utils.embedding import (
+    initialize_embedding_model,
+    embed_text,
     chunk_text,
     calculate_text_relevance,
     VECTOR_DIM,
 )
-from utils.ollama import get_embedding
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -36,6 +36,10 @@ def initialize_db(db_path: str = DB_PATH, model_name: str = MODEL_NAME) -> bool:
     try:
         os.makedirs(db_path, exist_ok=True)
         _db = lancedb.connect(db_path)
+
+        # Initialize embedding model using utility function
+        if not initialize_embedding_model(model_name):
+            return False
 
         # Create table if it doesn't exist
         if "files" not in _db.table_names():
@@ -78,7 +82,7 @@ def add_file(file_path: str, content: str, file_name: str) -> bool:
             return False
 
         # Generate embeddings using utility function
-        embeddings = get_embedding(chunks)
+        embeddings = embed_text(chunks)
 
         # Prepare data
         data = []
