@@ -6,7 +6,7 @@ This module handles query processing, vector similarity search, and result ranki
 import logging
 
 from models.schema import SearchResponse
-from core.database import search_files as db_search_files
+from core.database import VectorDB
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -35,7 +35,8 @@ def find_relevant_files(
 
     try:
         # Use database search
-        results = db_search_files(query, limit, similarity_threshold)
+        db = VectorDB().get_instance()
+        results = db.search_files(query, limit, similarity_threshold)
 
         return SearchResponse(
             success=True,

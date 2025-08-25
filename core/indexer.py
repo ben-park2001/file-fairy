@@ -12,7 +12,7 @@ from datetime import datetime
 
 from models.schema import FileInfo, IndexFolderResponse, ExtractTextRequest
 from utils.file_parser import extract_text, is_file_supported
-from core.database import add_file
+from core.database import VectorDB
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -77,28 +77,8 @@ def process_folder(
 
         for file_path in files_to_process:
             try:
-                # Extract file information
-                file_info = _get_file_info(file_path)
-
-                # Extract text content
-                request = ExtractTextRequest(file_path=file_path, clean=True)
-                response = extract_text(request)
-
-                if not response.success:
-                    failed_files.append(file_path)
-                    logger.error(
-                        f"Failed to extract text from {file_path}: {response.error}"
-                    )
-                    continue
-
-                text_content = response.content
-
-                # Add to vector database
-                success = add_file(file_path, text_content, file_info.file_name)
-
-                if success:
-                    indexed_files.append(file_info)
-                    logger.debug(f"Successfully indexed: {file_path}")
+                if process_file(file_path):
+                    indexed_files.append(_get_file_info(file_path))
                 else:
                     failed_files.append(file_path)
 
@@ -128,6 +108,42 @@ def process_folder(
             failed_files=failed_files,
             total_files=len(indexed_files) + len(failed_files),
         )
+
+
+def process_file(file_path: str) -> bool:
+    """
+    Processes and indexes a single file.
+
+    Returns:
+        bool: True if indexing was successful, False otherwise.
+    """
+    try:
+        if not _should_include_file(file_path, None):
+            logger.debug(f"Skipping unsupported file: {file_path}")
+            return False
+
+        file_info = _get_file_info(file_path)
+        request = ExtractTextRequest(file_path=file_path, clean=True)
+        response = extract_text(request)
+
+        if not response.success:
+            logger.error(f"Failed to extract text from {file_path}: {response.error}")
+            return False
+
+        # Add new entries to the vector database
+        db = VectorDB().get_instance()
+        success = db.upsert_file(file_path, response.content, file_info.file_name)
+
+        if success:
+            logger.info(f"Successfully indexed: {file_path}")
+        else:
+            logger.error(f"Failed to add file to database: {file_path}")
+
+        return success
+
+    except Exception as e:
+        logger.error(f"Failed to process file {file_path}: {str(e)}")
+        return False
 
 
 def _scan_folder(
@@ -222,9 +238,8 @@ def get_index_status() -> dict:
     Returns:
         dict: Index status information
     """
-    from core.database import get_index_stats
-
-    return get_index_stats()
+    db = VectorDB().get_instance()
+    return db.get_index_stats()
 
 
 def clear_index() -> bool:
@@ -234,6 +249,5 @@ def clear_index() -> bool:
     Returns:
         bool: True if successful
     """
-    from core.database import clear_index as db_clear_index
-
-    return db_clear_index()
+    db = VectorDB().get_instance()
+    return db.clear_index()
