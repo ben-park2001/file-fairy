@@ -3,8 +3,9 @@ import time
 import logging
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from core.indexer import process_file
-from core.database import remove_file
+
+from .indexer import process_file
+from .database import remove_file
 
 logger = logging.getLogger(__name__)
 

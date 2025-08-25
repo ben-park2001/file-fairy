@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
 
-from models.schema import FileInfo, IndexFolderResponse, ExtractTextRequest
-from utils.file_parser import extract_text, is_file_supported
-from core.database import VectorDB
+from ..models.schema import FileInfo, IndexFolderResponse, ExtractTextRequest
+from ..utils.file_parser import extract_text, is_file_supported
+from .database import VectorDB
 
 # Set up logging
 logger = logging.getLogger(__name__)

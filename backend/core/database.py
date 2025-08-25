@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import lancedb
 
-from models.schema import SearchResult
-from utils.embedding import (
+from ..models.schema import SearchResult
+from ..utils.embedding import (
     embed_text,
     chunk_text,
     calculate_text_relevance,
@@ -21,7 +21,7 @@ class VectorDB:
     """
 
     _instance: Optional["VectorDB"] = None
-    DB_PATH = "./data/lancedb"
+    DB_PATH = "./backend/data/lancedb"
     TABLE_NAME = "files"
 
     @classmethod

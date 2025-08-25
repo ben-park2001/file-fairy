@@ -10,7 +10,7 @@ import zlib
 from pathlib import Path
 import fitz
 
-from models.schema import ExtractTextRequest, ExtractTextResponse
+from ..models.schema import ExtractTextRequest, ExtractTextResponse
 
 
 def extract_text(request: ExtractTextRequest) -> ExtractTextResponse:

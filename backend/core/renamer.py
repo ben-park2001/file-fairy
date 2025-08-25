@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Optional, Tuple
 from datetime import datetime
 
-from models.schema import GenerateNameResponse, ExtractTextRequest
-from utils.file_parser import extract_text
-from utils.embedding import embed_text, extract_key_chunks, chunk_text
-from utils.llm import generate_ai_filename
+from ..models.schema import GenerateNameResponse, ExtractTextRequest
+from ..utils.file_parser import extract_text
+from ..utils.embedding import embed_text, extract_key_chunks, chunk_text
+from ..utils.llm import generate_ai_filename
 
 # Set up logging
 logger = logging.getLogger(__name__)

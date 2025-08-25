@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, status
 
-from models.schema import (
+from ..models.schema import (
     PingResponse,
     IndexFolderRequest,
     IndexFolderResponse,
@@ -16,9 +16,9 @@ from models.schema import (
     GenerateNameRequest,
     GenerateNameResponse,
 )
-from core.indexer import process_folder
-from core.search import find_relevant_files
-from core.renamer import generate_new_filename
+from ..core.indexer import process_folder
+from ..core.search import find_relevant_files
+from ..core.renamer import generate_new_filename
 
 # Set up logging
 logger = logging.getLogger(__name__)

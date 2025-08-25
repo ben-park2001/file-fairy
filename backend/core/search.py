@@ -5,8 +5,8 @@ This module handles query processing, vector similarity search, and result ranki
 
 import logging
 
-from models.schema import SearchResponse
-from core.database import VectorDB
+from ..models.schema import SearchResponse
+from .database import VectorDB
 
 # Set up logging
 logger = logging.getLogger(__name__)
