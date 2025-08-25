@@ -22,4 +22,5 @@ dependencies = [
     "scikit-learn>=1.7.1",
     "ollama>=0.5.3",
     "watchdog>=6.0.0",
+    "pywebview>=6.0",
 ]
