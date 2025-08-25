@@ -14,10 +14,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from core.database import VectorDB
 from api.endpoints import router
-from core.database import initialize_db
-from utils.embedding import initialize_embedding_model
-from utils.llm import initialize_llm_model
 
 # Configure logging
 logging.basicConfig(
@@ -34,21 +32,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     logger.info("Initializing File Fairy Backend...")
-
-    if initialize_db():
-        logger.info("Database initialized successfully")
-    else:
-        logger.error("Failed to initialize database")
-
-    if not initialize_embedding_model():
-        logger.error("Failed to initialize embedding model")
-    else:
-        logger.info("Embedding model initialized successfully")
-
-    if not initialize_llm_model():
-        logger.error("Failed to initialize LLM model")
-    else:
-        logger.info("LLM model initialized successfully")
+    VectorDB().get_instance()  # Initialize database instance
 
     yield
 
